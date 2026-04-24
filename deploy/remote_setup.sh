@@ -7,6 +7,7 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
+LISTEN_PORT="8090"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +31,10 @@ while [[ $# -gt 0 ]]; do
       DOMAIN="$2"
       shift 2
       ;;
+    --listen-port)
+      LISTEN_PORT="$2"
+      shift 2
+      ;;
     *)
       echo "未知参数: $1"
       exit 1
@@ -44,6 +49,11 @@ fi
 
 if [[ ! -f "$ARCHIVE_PATH" ]]; then
   echo "找不到压缩包: $ARCHIVE_PATH"
+  exit 1
+fi
+
+if ! [[ "$LISTEN_PORT" =~ ^[0-9]+$ ]] || [[ "$LISTEN_PORT" -lt 1 ]] || [[ "$LISTEN_PORT" -gt 65535 ]]; then
+  echo "端口无效: $LISTEN_PORT (应为 1-65535)"
   exit 1
 fi
 
@@ -100,7 +110,7 @@ echo "[5/7] 写入 nginx 站点配置"
 NGINX_FILE="/tmp/${SITE_NAME}.conf"
 cat > "$NGINX_FILE" <<EOF
 server {
-    listen 80;
+    listen ${LISTEN_PORT};
     server_name ${DOMAIN};
 
     root ${REMOTE_DIR}/frontend/dist;
@@ -139,6 +149,16 @@ sudo systemctl restart nginx
 echo "[7/7] 清理临时包"
 rm -f "$ARCHIVE_PATH"
 
+SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ -z "${SERVER_IP}" ]]; then
+  SERVER_IP="$(hostname 2>/dev/null || true)"
+fi
+
 echo "部署完成。"
 echo "- API: 由 systemd 服务 ${SERVICE_NAME}.service 管理"
 echo "- Web: 由 nginx 站点 ${SITE_NAME}.conf 提供"
+echo "- 监听端口: ${LISTEN_PORT}"
+echo "- 可访问地址(IP): http://${SERVER_IP}:${LISTEN_PORT}/"
+if [[ "${DOMAIN}" != "_" ]]; then
+  echo "- 可访问地址(域名): http://${DOMAIN}:${LISTEN_PORT}/"
+fi

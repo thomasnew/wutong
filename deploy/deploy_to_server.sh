@@ -11,6 +11,7 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
+LISTEN_PORT="8090"
 SKIP_PACKAGE="false"
 ARCHIVE_PATH=""
 
@@ -28,6 +29,7 @@ usage() {
     [--service-name family-photo-gallery] \\
     [--site-name family-photo-gallery] \\
     [--domain your.domain.com] \\
+    [--listen-port 8090] \\
     [--skip-package]
 EOF
 }
@@ -66,6 +68,10 @@ while [[ $# -gt 0 ]]; do
       DOMAIN="$2"
       shift 2
       ;;
+    --listen-port)
+      LISTEN_PORT="$2"
+      shift 2
+      ;;
     --skip-package)
       SKIP_PACKAGE="true"
       shift
@@ -85,6 +91,11 @@ done
 if [[ -z "$REMOTE_HOST" || -z "$REMOTE_USER" ]]; then
   echo "必须提供 --host 和 --user 参数"
   usage
+  exit 1
+fi
+
+if ! [[ "$LISTEN_PORT" =~ ^[0-9]+$ ]] || [[ "$LISTEN_PORT" -lt 1 ]] || [[ "$LISTEN_PORT" -gt 65535 ]]; then
+  echo "端口无效: $LISTEN_PORT (应为 1-65535)"
   exit 1
 fi
 
@@ -132,7 +143,8 @@ ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
     --remote-dir ${REMOTE_DIR} \
     --service-name ${SERVICE_NAME} \
     --site-name ${SITE_NAME} \
-    --domain ${DOMAIN}"
+    --domain ${DOMAIN} \
+    --listen-port ${LISTEN_PORT}"
 
 echo "[4/4] 清理远程脚本"
 ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "rm -f ${REMOTE_SCRIPT}"
