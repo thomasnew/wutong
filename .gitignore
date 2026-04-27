@@ -1,0 +1,10 @@
+.DS_Store
+**/.DS_Store
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Runtime data (should not be versioned)
+backend/data/
+backend/photos_root/
