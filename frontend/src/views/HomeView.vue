@@ -5,7 +5,7 @@
       <button @click="loadStats">刷新</button>
     </div>
     <p class="error" v-if="error">{{ error }}</p>
-    <div class="rank-grid">
+    <div class="rank-grid" v-if="mobileView === 'home'">
       <article class="rank-card">
         <h4>
           <span class="rank-title-mobile">最多点赞</span>
@@ -70,6 +70,7 @@
             </div>
           </li>
         </ol>
+        <button class="rank-more-btn" @click="openMobileList('liked')">更多...</button>
       </article>
       <article class="rank-card">
         <h4>
@@ -135,6 +136,7 @@
             </div>
           </li>
         </ol>
+        <button class="rank-more-btn" @click="openMobileList('commented')">更多...</button>
       </article>
       <article class="rank-card">
         <h4>
@@ -200,8 +202,54 @@
             </div>
           </li>
         </ol>
+        <button class="rank-more-btn" @click="openMobileList('updated')">更多...</button>
       </article>
     </div>
+    <article v-else class="rank-card rank-mobile-detail">
+      <div class="rank-mobile-header">
+        <button class="rank-mobile-back" @click="mobileView = 'home'">返回首页</button>
+        <h4>{{ mobileListTitle }}</h4>
+      </div>
+      <ol>
+        <li v-for="item in mobileListItems" :key="item.photo_id" @click="openDetail(item.photo_id)">
+          <div
+            class="rank-thumb-wrap"
+            @mouseenter.stop="scheduleHoverLoad(item.photo_id)"
+            @mouseleave.stop="clearHoverTimer(item.photo_id)"
+          >
+            <img
+              v-if="item.media_type !== 'video'"
+              class="rank-thumb"
+              :src="photoUrl(item.relative_path)"
+              :alt="item.filename"
+            />
+            <video
+              v-else
+              class="rank-thumb rank-thumb-video"
+              muted
+              playsinline
+              webkit-playsinline="true"
+              autoplay
+              loop
+              preload="auto"
+              @loadeddata="seekVideoToStart"
+            >
+              <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
+            </video>
+            <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
+          </div>
+          <div class="rank-main">
+            <div class="rank-head">
+              <span class="rank-title">{{ item.title }}</span>
+              <span>👍 {{ item.like_count }} · 💬 {{ item.comment_count }}</span>
+            </div>
+            <p class="rank-mobile-meta">更新：{{ formatTime(item.updated_at) || "未知" }}</p>
+            <p class="rank-mobile-meta">点赞：{{ likedUsersText(item.photo_id) }}</p>
+            <p class="rank-mobile-meta">评论：{{ commentSummaryText(item.photo_id) }}</p>
+          </div>
+        </li>
+      </ol>
+    </article>
   </section>
 
   <div class="modal-mask" v-if="detail" @click.self="detail = null">
@@ -252,7 +300,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   deleteLike,
   getPhotoDetail,
@@ -275,6 +323,7 @@ const hoverTimers = new Map();
 const hoverInflight = new Map();
 const marqueeSpeedSeconds = ref(12);
 const commentText = ref("");
+const mobileView = ref("home");
 
 async function loadStats() {
   error.value = "";
@@ -375,10 +424,38 @@ function preloadTopDetails() {
   });
 }
 
+function openMobileList(type) {
+  mobileView.value = type;
+  mobileListItems.value.forEach((item) => {
+    if (!hoverDetails.value[item.photo_id]) {
+      loadHoverDetail(item.photo_id);
+    }
+  });
+}
+
+const mobileListTitle = computed(() => {
+  if (mobileView.value === "liked") return "最多点赞";
+  if (mobileView.value === "commented") return "最多评论";
+  return "最近更新";
+});
+
+const mobileListItems = computed(() => {
+  if (mobileView.value === "liked") return stats.value.top_liked;
+  if (mobileView.value === "commented") return stats.value.top_commented;
+  if (mobileView.value === "updated") return stats.value.latest_updated;
+  return [];
+});
+
 function likedMarquee(photoId) {
   const users = hoverDetails.value[photoId]?.liked_users || [];
   if (!users.length) return "点赞用户：暂无";
   return `点赞用户：${users.map((u) => u.username).join("、")}  •  `;
+}
+
+function likedUsersText(photoId) {
+  const users = hoverDetails.value[photoId]?.liked_users || [];
+  if (!users.length) return "暂无";
+  return users.map((u) => u.username).join("、");
 }
 
 function commentMarquee(photoId) {
@@ -392,6 +469,15 @@ function commentMarquee(photoId) {
       .join("  |  ") +
     "  •  "
   );
+}
+
+function commentSummaryText(photoId) {
+  const comments = hoverDetails.value[photoId]?.comments || [];
+  if (!comments.length) return "暂无";
+  return comments
+    .slice(0, 3)
+    .map((c) => `${c.username || "unknown"}: ${c.content}`)
+    .join(" | ");
 }
 
 function updatedMarquee(photoId, updatedAt) {

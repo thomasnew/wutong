@@ -52,6 +52,12 @@ body { margin: 0; }
 .rank-card h4 {
   margin: 0 0 8px;
 }
+.rank-more-btn {
+  display: none;
+}
+.rank-mobile-detail {
+  display: none;
+}
 .rank-title-mobile {
   display: none;
 }
@@ -387,6 +393,9 @@ button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
+  .rank-mobile-detail {
+    display: block;
+  }
   .rank-card {
     padding: 6px;
   }
@@ -478,6 +487,14 @@ button {
     justify-content: center;
     padding: 2px;
   }
+  .rank-more-btn {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+    min-width: 0;
+  }
   .rank-thumb-wrap {
     width: 100%;
     max-width: 96px;
@@ -490,6 +507,52 @@ button {
   }
   .rank-main {
     display: none;
+  }
+  .rank-mobile-detail ol {
+    list-style: decimal;
+    padding-left: 18px;
+    gap: 8px;
+  }
+  .rank-mobile-detail li {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 6px;
+    border-radius: 6px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+  }
+  .rank-mobile-detail .rank-thumb-wrap {
+    width: 64px;
+    max-width: 64px;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 64px;
+  }
+  .rank-mobile-detail .rank-main {
+    display: grid;
+    gap: 4px;
+  }
+  .rank-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .rank-mobile-header h4 {
+    margin: 0;
+    font-size: 14px;
+  }
+  .rank-mobile-back {
+    padding: 6px 10px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .rank-mobile-meta {
+    margin: 0;
+    font-size: 11px;
+    color: #4b5563;
+    line-height: 1.35;
+    word-break: break-word;
   }
   .rank-head {
     font-size: 12px;
