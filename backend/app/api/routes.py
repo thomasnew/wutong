@@ -32,6 +32,21 @@ def _photo_brief(p) -> dict[str, Any]:
     }
 
 
+def _detect_client_device(user_agent: str) -> str:
+    ua = user_agent.lower()
+    mobile_tokens = [
+        "iphone",
+        "android",
+        "mobile",
+        "ipad",
+        "ipod",
+        "windows phone",
+        "blackberry",
+        "opera mini",
+    ]
+    return "mobile" if any(token in ua for token in mobile_tokens) else "pc"
+
+
 class LoginReq(BaseModel):
     username: str
     password: str
@@ -91,6 +106,15 @@ def me(user: User = Depends(get_current_user)) -> dict[str, Any]:
 @router.get("/settings")
 def get_settings(user: User = Depends(get_current_user)) -> dict[str, Any]:
     return settings_service.get_settings()
+
+
+@router.get("/client/profile")
+def get_client_profile(user_agent: str = Header(default="")) -> dict[str, Any]:
+    device_type = _detect_client_device(user_agent)
+    return {
+        "device_type": device_type,
+        "is_mobile": device_type == "mobile",
+    }
 
 
 @router.get("/folders/tree")

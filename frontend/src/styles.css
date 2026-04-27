@@ -7,7 +7,7 @@
 body { margin: 0; }
 .app-shell { min-height: 100vh; }
 .topbar {
-  height: 56px;
+  min-height: 56px;
   background: #111827;
   color: #fff;
   display: flex;
@@ -328,6 +328,11 @@ button {
   margin-top: 2px;
 }
 
+.app-shell.client-mobile .rank-marquee-track {
+  animation: none;
+  padding-left: 0;
+}
+
 @media (max-width: 900px) {
   .rank-grid {
     grid-template-columns: 1fr;
@@ -337,5 +342,115 @@ button {
   }
   .photo-thumb--large img {
     height: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 10px;
+  }
+  .topbar {
+    padding: 10px 12px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .brand {
+    font-size: 16px;
+  }
+  .nav {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .user-badge {
+    order: 4;
+    width: 100%;
+    text-align: center;
+  }
+  .layout {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sidebar {
+    width: 100%;
+  }
+  .panel {
+    padding: 10px;
+    border-radius: 10px;
+  }
+  .toolbar {
+    gap: 8px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .toolbar button {
+    width: 100%;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .photo-card--large {
+    grid-column: span 1;
+  }
+  .photo-thumb--small img,
+  .photo-thumb--large img {
+    height: 140px;
+  }
+  .photo-meta {
+    padding: 8px;
+  }
+  .photo-meta h4 {
+    font-size: 13px;
+  }
+  .photo-meta p {
+    font-size: 11px;
+  }
+  .admin-edit-btn {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  .rank-card li {
+    align-items: flex-start;
+  }
+  .rank-thumb-wrap,
+  .rank-thumb {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+  .rank-head {
+    font-size: 12px;
+  }
+  .rank-marquee {
+    font-size: 11px;
+  }
+  .hover-preview,
+  .rank-hover-preview {
+    display: none;
+  }
+  .modal {
+    width: 96vw;
+    max-height: 92vh;
+    padding: 10px;
+  }
+  .modal-header h3 {
+    font-size: 16px;
+    margin: 0;
+    line-height: 1.3;
+  }
+  .detail-image {
+    max-height: 260px;
+  }
+  .comments li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  form button {
+    width: 100%;
   }
 }

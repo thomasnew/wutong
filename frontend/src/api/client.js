@@ -27,6 +27,7 @@ export const postLogin = (username, password) =>
   });
 
 export const postLogout = () => request("/api/auth/logout", { method: "POST" });
+export const getClientProfile = () => request("/api/client/profile");
 export const getMe = () => request("/api/auth/me");
 export const getFolderTree = () => request("/api/folders/tree");
 export const getPhotos = (folder = "") =>

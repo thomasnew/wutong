@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="`client-${deviceType}`">
     <header class="topbar">
       <div class="brand">Family Photo Gallery</div>
       <nav class="nav" v-if="token">
@@ -17,14 +17,15 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { RouterLink, RouterView, useRouter } from "vue-router";
 import { authStore } from "./stores/auth";
-import { postLogout } from "./api/client";
+import { getClientProfile, postLogout } from "./api/client";
 
 const router = useRouter();
 const token = computed(() => authStore.token);
 const user = computed(() => authStore.user);
+const deviceType = ref("pc");
 
 async function onLogout() {
   try {
@@ -35,4 +36,20 @@ async function onLogout() {
   authStore.clear();
   router.push("/login");
 }
+
+function detectDeviceFromScreen() {
+  if (typeof window === "undefined") return "pc";
+  return window.matchMedia("(max-width: 768px)").matches ? "mobile" : "pc";
+}
+
+async function loadClientProfile() {
+  try {
+    const data = await getClientProfile();
+    deviceType.value = data?.is_mobile ? "mobile" : detectDeviceFromScreen();
+  } catch (_) {
+    deviceType.value = detectDeviceFromScreen();
+  }
+}
+
+onMounted(loadClientProfile);
 </script>
