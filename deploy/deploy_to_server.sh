@@ -12,8 +12,8 @@ SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
 LISTEN_PORT="8090"
-DATA_DIR="/var/lib/family-photo-gallery/data"
 PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
+DATABASE_URL="mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
 SKIP_PACKAGE="false"
 ARCHIVE_PATH=""
 
@@ -32,8 +32,8 @@ usage() {
     [--site-name family-photo-gallery] \\
     [--domain your.domain.com] \\
     [--listen-port 8090] \\
-    [--data-dir /var/lib/family-photo-gallery/data] \\
     [--photos-root /var/lib/family-photo-gallery/photos] \\
+    [--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong] \\
     [--skip-package]
 EOF
 }
@@ -76,12 +76,12 @@ while [[ $# -gt 0 ]]; do
       LISTEN_PORT="$2"
       shift 2
       ;;
-    --data-dir)
-      DATA_DIR="$2"
-      shift 2
-      ;;
     --photos-root)
       PHOTOS_ROOT="$2"
+      shift 2
+      ;;
+    --database-url)
+      DATABASE_URL="$2"
       shift 2
       ;;
     --skip-package)
@@ -157,8 +157,8 @@ ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
     --site-name ${SITE_NAME} \
     --domain ${DOMAIN} \
     --listen-port ${LISTEN_PORT} \
-    --data-dir ${DATA_DIR} \
-    --photos-root ${PHOTOS_ROOT}"
+    --photos-root ${PHOTOS_ROOT} \
+    --database-url ${DATABASE_URL}"
 
 echo "[4/4] 清理远程脚本"
 ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "rm -f ${REMOTE_SCRIPT}"

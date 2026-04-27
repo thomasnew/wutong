@@ -1,29 +1,55 @@
 import uuid
+from contextlib import contextmanager
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.db.models import UserModel
 from app.schemas.models import User
 from app.services.security import hash_password, now_utc
-from app.storage.json_store import JsonStore
 
 
 class UserService:
-    def __init__(self, store: JsonStore) -> None:
-        self.store = store
-        self.file_name = "users.json"
+    def __init__(self, session_factory: sessionmaker) -> None:
+        self.session_factory = session_factory
+
+    @contextmanager
+    def _session(self) -> Session:
+        db = self.session_factory()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    @staticmethod
+    def _to_user(row: UserModel) -> User:
+        return User(
+            id=row.id,
+            username=row.username,
+            password_hash=row.password_hash,
+            role=row.role,  # type: ignore[arg-type]
+            status=row.status,  # type: ignore[arg-type]
+            created_at=row.created_at,
+        )
 
     def list_users(self) -> list[User]:
-        return [User(**row) for row in self.store.read(self.file_name)]
+        with self._session() as db:
+            rows = db.execute(select(UserModel).order_by(UserModel.created_at.asc())).scalars().all()
+            return [self._to_user(row) for row in rows]
 
     def get_by_id(self, user_id: str) -> User | None:
-        for user in self.list_users():
-            if user.id == user_id:
-                return user
-        return None
+        with self._session() as db:
+            row = db.get(UserModel, user_id)
+            return self._to_user(row) if row else None
 
     def get_by_username(self, username: str) -> User | None:
-        for user in self.list_users():
-            if user.username == username:
-                return user
-        return None
+        with self._session() as db:
+            row = db.execute(select(UserModel).where(UserModel.username == username)).scalars().first()
+            return self._to_user(row) if row else None
 
     def ensure_admin(self, username: str, password: str) -> None:
         if self.get_by_username(username):
@@ -31,20 +57,21 @@ class UserService:
         self.create_user(username=username, password=password, role="admin")
 
     def create_user(self, username: str, password: str, role: str = "user") -> User:
-        if self.get_by_username(username):
-            raise ValueError("username already exists")
-        user = User(
-            id=str(uuid.uuid4()),
-            username=username,
-            password_hash=hash_password(password),
-            role=role,  # type: ignore[arg-type]
-            status="active",
-            created_at=now_utc(),
-        )
-        rows = self.store.read(self.file_name)
-        rows.append(user.model_dump(mode="json"))
-        self.store.write(self.file_name, rows)
-        return user
+        with self._session() as db:
+            exists = db.execute(select(UserModel).where(UserModel.username == username)).scalars().first()
+            if exists:
+                raise ValueError("username already exists")
+            row = UserModel(
+                id=str(uuid.uuid4()),
+                username=username,
+                password_hash=hash_password(password),
+                role=role,
+                status="active",
+                created_at=now_utc(),
+            )
+            db.add(row)
+            db.flush()
+            return self._to_user(row)
 
     def admin_update_user_credentials(
         self,
@@ -52,41 +79,41 @@ class UserService:
         new_username: str | None = None,
         new_password: str | None = None,
     ) -> User:
-        rows = self.store.read(self.file_name)
-        target = next((r for r in rows if r.get("id") == user_id), None)
-        if not target:
-            raise ValueError("user not found")
+        with self._session() as db:
+            target = db.get(UserModel, user_id)
+            if not target:
+                raise ValueError("user not found")
 
-        if new_username is not None:
-            new_username = new_username.strip()
-            if not new_username:
-                raise ValueError("username cannot be empty")
-            for row in rows:
-                if row.get("id") != user_id and row.get("username") == new_username:
+            if new_username is not None:
+                new_username = new_username.strip()
+                if not new_username:
+                    raise ValueError("username cannot be empty")
+                exists = db.execute(
+                    select(UserModel).where(UserModel.username == new_username, UserModel.id != user_id)
+                ).scalars().first()
+                if exists:
                     raise ValueError("username already exists")
-            target["username"] = new_username
+                target.username = new_username
 
-        if new_password is not None:
-            if len(new_password) < 4:
-                raise ValueError("password too short")
-            target["password_hash"] = hash_password(new_password)
+            if new_password is not None:
+                if len(new_password) < 4:
+                    raise ValueError("password too short")
+                target.password_hash = hash_password(new_password)
 
-        self.store.write(self.file_name, rows)
-        return User(**target)
+            db.flush()
+            return self._to_user(target)
 
     def admin_delete_user(self, user_id: str, actor_id: str) -> None:
-        rows = self.store.read(self.file_name)
-        target = next((r for r in rows if r.get("id") == user_id), None)
-        if not target:
-            raise ValueError("user not found")
-        if user_id == actor_id:
-            raise ValueError("cannot delete current admin")
+        with self._session() as db:
+            target = db.get(UserModel, user_id)
+            if not target:
+                raise ValueError("user not found")
+            if user_id == actor_id:
+                raise ValueError("cannot delete current admin")
 
-        # Keep at least one admin user in system.
-        if target.get("role") == "admin":
-            admin_count = len([r for r in rows if r.get("role") == "admin"])
-            if admin_count <= 1:
-                raise ValueError("cannot delete the last admin")
+            if target.role == "admin":
+                admins = db.execute(select(UserModel).where(UserModel.role == "admin")).scalars().all()
+                if len(admins) <= 1:
+                    raise ValueError("cannot delete the last admin")
 
-        rows = [r for r in rows if r.get("id") != user_id]
-        self.store.write(self.file_name, rows)
+            db.delete(target)

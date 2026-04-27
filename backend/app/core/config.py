@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Family Photo Gallery"
-    data_dir: Path = Path("backend/data")
+    database_url: str = "mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
     photos_root: Path = Path("backend/photos_root")
     static_root: Path | None = None
     token_ttl_days: int = 7

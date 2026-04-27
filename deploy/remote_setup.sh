@@ -8,8 +8,8 @@ SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
 LISTEN_PORT="8090"
-DATA_DIR="/var/lib/family-photo-gallery/data"
 PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
+DATABASE_URL="mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -37,12 +37,12 @@ while [[ $# -gt 0 ]]; do
       LISTEN_PORT="$2"
       shift 2
       ;;
-    --data-dir)
-      DATA_DIR="$2"
-      shift 2
-      ;;
     --photos-root)
       PHOTOS_ROOT="$2"
+      shift 2
+      ;;
+    --database-url)
+      DATABASE_URL="$2"
       shift 2
       ;;
     *)
@@ -96,9 +96,9 @@ python3 -m venv "$REMOTE_DIR/.venv"
 "$REMOTE_DIR/.venv/bin/pip" install --upgrade pip
 "$REMOTE_DIR/.venv/bin/pip" install -r "$REMOTE_DIR/backend/requirements.txt"
 
-echo "[4/8] 初始化运行数据目录（仓库外）"
-sudo mkdir -p "$DATA_DIR" "$PHOTOS_ROOT"
-sudo chown -R "$USER":"$USER" "$DATA_DIR" "$PHOTOS_ROOT"
+echo "[4/8] 初始化运行媒体目录（仓库外）"
+sudo mkdir -p "$PHOTOS_ROOT"
+sudo chown -R "$USER":"$USER" "$PHOTOS_ROOT"
 
 echo "[5/8] 写入 systemd 服务"
 SERVICE_FILE="/tmp/${SERVICE_NAME}.service"
@@ -111,7 +111,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$REMOTE_DIR
-Environment=GALLERY_DATA_DIR=$DATA_DIR
+Environment=GALLERY_DATABASE_URL=$DATABASE_URL
 Environment=GALLERY_PHOTOS_ROOT=$PHOTOS_ROOT
 ExecStart=$REMOTE_DIR/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir $REMOTE_DIR/backend
 Restart=always
@@ -173,7 +173,7 @@ fi
 echo "部署完成。"
 echo "- API: 由 systemd 服务 ${SERVICE_NAME}.service 管理"
 echo "- Web: 由 nginx 站点 ${SITE_NAME}.conf 提供"
-echo "- 数据目录: ${DATA_DIR}"
+echo "- 数据库连接: ${DATABASE_URL}"
 echo "- 媒体目录: ${PHOTOS_ROOT}"
 echo "- 监听端口: ${LISTEN_PORT}"
 echo "- 可访问地址(IP): http://${SERVER_IP}:${LISTEN_PORT}/"

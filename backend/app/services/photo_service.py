@@ -1,14 +1,17 @@
-import uuid
 import os
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 from PIL import Image
 from PIL.ExifTags import GPSTAGS, TAGS
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.models import CommentModel, LikeModel, PhotoModel
 from app.schemas.models import Photo
 from app.services.security import now_utc
-from app.storage.json_store import JsonStore
 
 
 def _to_utc(dt: datetime) -> datetime:
@@ -16,10 +19,9 @@ def _to_utc(dt: datetime) -> datetime:
 
 
 class PhotoService:
-    def __init__(self, store: JsonStore, photos_root: Path) -> None:
-        self.store = store
+    def __init__(self, session_factory: sessionmaker, photos_root: Path) -> None:
+        self.session_factory = session_factory
         self.photos_root = photos_root
-        self.file_name = "photos.json"
         self.image_exts = {".jpg", ".jpeg", ".png", ".webp"}
         self.video_exts = {
             ".mp4",
@@ -40,17 +42,52 @@ class PhotoService:
         }
         self.allowed = self.image_exts | self.video_exts
 
+    @contextmanager
+    def _session(self) -> Session:
+        db = self.session_factory()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    @staticmethod
+    def _to_photo(row: PhotoModel) -> Photo:
+        return Photo(
+            id=row.id,
+            relative_path=row.relative_path,
+            folder_path=row.folder_path,
+            filename=row.filename,
+            media_type=row.media_type,  # type: ignore[arg-type]
+            title=row.title,
+            description=row.description,
+            tags=list(row.tags or []),
+            captured_at=row.captured_at,
+            gps_lat=row.gps_lat,
+            gps_lng=row.gps_lng,
+            location_text=row.location_text,
+            metadata_source=row.metadata_source,  # type: ignore[arg-type]
+            metadata_updated_by=row.metadata_updated_by,
+            updated_at=row.updated_at,
+            created_at=row.created_at,
+        )
+
     def list_photos(self, folder: str | None = None) -> list[Photo]:
-        rows = [Photo(**row) for row in self.store.read(self.file_name)]
-        if folder:
-            rows = [p for p in rows if p.folder_path.startswith(folder)]
-        return sorted(rows, key=lambda p: (p.captured_at or p.updated_at), reverse=True)
+        with self._session() as db:
+            query = select(PhotoModel)
+            if folder:
+                query = query.where(PhotoModel.folder_path.startswith(folder))
+            rows = db.execute(query).scalars().all()
+            photos = [self._to_photo(row) for row in rows]
+            return sorted(photos, key=lambda p: (p.captured_at or p.updated_at), reverse=True)
 
     def get_photo(self, photo_id: str) -> Photo | None:
-        for p in self.list_photos():
-            if p.id == photo_id:
-                return p
-        return None
+        with self._session() as db:
+            row = db.get(PhotoModel, photo_id)
+            return self._to_photo(row) if row else None
 
     def update_metadata(
         self,
@@ -62,25 +99,25 @@ class PhotoService:
         captured_at: datetime | None,
         user_id: str,
     ) -> Photo:
-        rows = self.store.read(self.file_name)
-        for row in rows:
-            if row["id"] == photo_id:
-                if title is not None:
-                    row["title"] = title
-                if description is not None:
-                    row["description"] = description
-                if tags is not None:
-                    row["tags"] = tags
-                if location_text is not None:
-                    row["location_text"] = location_text
-                if captured_at is not None:
-                    row["captured_at"] = captured_at.isoformat()
-                row["metadata_source"] = "manual"
-                row["metadata_updated_by"] = user_id
-                row["updated_at"] = now_utc().isoformat()
-                self.store.write(self.file_name, rows)
-                return Photo(**row)
-        raise ValueError("photo not found")
+        with self._session() as db:
+            row = db.get(PhotoModel, photo_id)
+            if not row:
+                raise ValueError("photo not found")
+            if title is not None:
+                row.title = title
+            if description is not None:
+                row.description = description
+            if tags is not None:
+                row.tags = tags
+            if location_text is not None:
+                row.location_text = location_text
+            if captured_at is not None:
+                row.captured_at = captured_at
+            row.metadata_source = "manual"
+            row.metadata_updated_by = user_id
+            row.updated_at = now_utc()
+            db.flush()
+            return self._to_photo(row)
 
     def folder_tree(self) -> dict:
         root = {"name": "/", "path": "", "children": []}
@@ -107,73 +144,79 @@ class PhotoService:
         return root
 
     def scan(self) -> dict[str, int]:
-        existing = {p.relative_path: p for p in self.list_photos()}
-        id_remap: dict[str, str] = {}
-        for rel, p in existing.items():
-            stable_id = self._stable_photo_id(rel)
-            if p.id != stable_id:
-                id_remap[p.id] = stable_id
-                p.id = stable_id
-        now = now_utc()
-        seen: set[str] = set()
-        created = 0
-        updated = 0
+        with self._session() as db:
+            existing_rows = db.execute(select(PhotoModel)).scalars().all()
+            existing = {row.relative_path: row for row in existing_rows}
+            id_remap: dict[str, str] = {}
+            for rel, row in existing.items():
+                stable_id = self._stable_photo_id(rel)
+                if row.id != stable_id:
+                    id_remap[row.id] = stable_id
+                    row.id = stable_id
 
-        _, files = self._walk_photos_root()
-        for file_path in sorted(files):
-            if file_path.suffix.lower() not in self.allowed or not file_path.is_file():
-                continue
-            rel = file_path.relative_to(self.photos_root).as_posix()
-            seen.add(rel)
-            media_type = self._detect_media_type(file_path)
-            meta = self._extract_metadata(file_path, media_type=media_type)
-            if rel not in existing:
-                parent = Path(rel).parent.as_posix()
-                folder_path = "" if parent == "." else parent
-                photo = Photo(
-                    id=self._stable_photo_id(rel),
-                    relative_path=rel,
-                    folder_path=folder_path,
-                    filename=file_path.name,
-                    media_type=media_type,
-                    captured_at=meta["captured_at"],
-                    gps_lat=meta["gps_lat"],
-                    gps_lng=meta["gps_lng"],
-                    location_text="",
-                    metadata_source=meta["metadata_source"],
-                    updated_at=now,
-                    created_at=now,
-                )
-                existing[rel] = photo
-                created += 1
-            else:
-                p = existing[rel]
-                p.filename = file_path.name
-                p.media_type = media_type
-                parent = Path(rel).parent.as_posix()
-                p.folder_path = "" if parent == "." else parent
-                p.updated_at = now
-                if p.metadata_source != "manual":
-                    p.captured_at = meta["captured_at"]
-                    p.gps_lat = meta["gps_lat"]
-                    p.gps_lng = meta["gps_lng"]
-                    p.metadata_source = meta["metadata_source"]
-                updated += 1
+            if id_remap:
+                for old_id, new_id in id_remap.items():
+                    for like in db.execute(select(LikeModel).where(LikeModel.photo_id == old_id)).scalars().all():
+                        like.photo_id = new_id
+                    for comment in db.execute(
+                        select(CommentModel).where(CommentModel.photo_id == old_id)
+                    ).scalars().all():
+                        comment.photo_id = new_id
 
-        deleted = 0
-        for rel in list(existing):
-            if rel not in seen:
-                del existing[rel]
-                deleted += 1
+            now = now_utc()
+            seen: set[str] = set()
+            created = 0
+            updated = 0
 
-        self.store.write(
-            self.file_name,
-            [p.model_dump(mode="json") for p in existing.values()],
-        )
-        if id_remap:
-            self._remap_relation_ids("likes.json", id_remap)
-            self._remap_relation_ids("comments.json", id_remap)
-        return {"created": created, "updated": updated, "deleted": deleted}
+            _, files = self._walk_photos_root()
+            for file_path in sorted(files):
+                if file_path.suffix.lower() not in self.allowed or not file_path.is_file():
+                    continue
+                rel = file_path.relative_to(self.photos_root).as_posix()
+                seen.add(rel)
+                media_type = self._detect_media_type(file_path)
+                meta = self._extract_metadata(file_path, media_type=media_type)
+                if rel not in existing:
+                    parent = Path(rel).parent.as_posix()
+                    folder_path = "" if parent == "." else parent
+                    row = PhotoModel(
+                        id=self._stable_photo_id(rel),
+                        relative_path=rel,
+                        folder_path=folder_path,
+                        filename=file_path.name,
+                        media_type=media_type,
+                        captured_at=meta["captured_at"],
+                        gps_lat=meta["gps_lat"],
+                        gps_lng=meta["gps_lng"],
+                        location_text="",
+                        metadata_source=meta["metadata_source"],
+                        updated_at=now,
+                        created_at=now,
+                    )
+                    db.add(row)
+                    existing[rel] = row
+                    created += 1
+                else:
+                    row = existing[rel]
+                    row.filename = file_path.name
+                    row.media_type = media_type
+                    parent = Path(rel).parent.as_posix()
+                    row.folder_path = "" if parent == "." else parent
+                    row.updated_at = now
+                    if row.metadata_source != "manual":
+                        row.captured_at = meta["captured_at"]
+                        row.gps_lat = meta["gps_lat"]
+                        row.gps_lng = meta["gps_lng"]
+                        row.metadata_source = meta["metadata_source"]
+                    updated += 1
+
+            deleted = 0
+            for rel in list(existing):
+                if rel not in seen:
+                    db.delete(existing[rel])
+                    deleted += 1
+
+            return {"created": created, "updated": updated, "deleted": deleted}
 
     def _extract_metadata(self, path: Path, media_type: str) -> dict:
         captured_at: datetime | None = None
@@ -220,17 +263,6 @@ class PhotoService:
 
     def _stable_photo_id(self, relative_path: str) -> str:
         return str(uuid.uuid5(uuid.NAMESPACE_URL, f"media:{relative_path}"))
-
-    def _remap_relation_ids(self, file_name: str, id_remap: dict[str, str]) -> None:
-        rows = self.store.read(file_name)
-        changed = False
-        for row in rows:
-            old_id = row.get("photo_id")
-            if old_id in id_remap:
-                row["photo_id"] = id_remap[old_id]
-                changed = True
-        if changed:
-            self.store.write(file_name, rows)
 
     def _walk_photos_root(self) -> tuple[list[Path], list[Path]]:
         dirs: list[Path] = []

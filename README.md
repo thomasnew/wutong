@@ -26,15 +26,15 @@
 
 - 前端：`Vue 3`、`Vue Router`、`Vite`
 - 后端：`FastAPI`、`Pydantic`
-- 存储：JSON 文件存储（位于 `backend/data`）
+- 存储：`MySQL`（`SQLAlchemy + PyMySQL`）
 - 图片元数据：`Pillow`
 
 ## 项目结构
 
 - `frontend/`：前端工程
 - `backend/`：后端工程
-- `backend/photos_root/`：本地开发默认照片根目录（生产环境建议外置）
-- `backend/data/`：本地开发默认 JSON 数据目录（生产环境建议外置）
+- `backend/photos_root/`：照片根目录（默认本地目录，可通过环境变量外置）
+- `podman-compose.yml`：`app + mysql` 双容器编排文件
 - `deploy/`：打包与自动部署脚本
 
 ## 本地开发
@@ -45,7 +45,14 @@
 python3 -m venv backend/.venv
 source backend/.venv/bin/activate
 pip install -r backend/requirements.txt
+export GALLERY_DATABASE_URL='mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong'
 uvicorn app.main:app --reload --app-dir backend
+```
+
+如需把历史 `backend/data` JSON 数据迁移到 MySQL，可执行：
+
+```bash
+python backend/scripts/migrate_json_to_mysql.py --json-dir backend/data
 ```
 
 默认监听 `http://127.0.0.1:8000`。
@@ -71,7 +78,7 @@ npm run dev
 
 ### 方式一：服务器直接部署（nginx + systemd）
 
-适用于 Debian/Ubuntu，通过 SSH 安装 **nginx**、**systemd** 后端服务；**nginx 托管前端静态文件**，后端只处理 `/api` 与 `/photos`。运行数据默认在仓库外目录，代码更新不会覆盖照片与 JSON 数据。
+适用于 Debian/Ubuntu，通过 SSH 安装 **nginx**、**systemd** 后端服务；**nginx 托管前端静态文件**，后端只处理 `/api` 与 `/photos`。数据库使用 MySQL（可本机或远程）。
 
 **首次部署**
 
@@ -84,37 +91,41 @@ npm run dev
 在服务器上已进入本仓库的路径后执行：`bash deploy/update_to_server.sh`  
 （可选：`--branch`、`--remote-dir`、`--skip-git-pull` 等，见 `deploy/README.md`。）
 
-默认外置目录：`/var/lib/family-photo-gallery/data`、`/var/lib/family-photo-gallery/photos`。支持跨架构部署（例如本机 ARM 打包、远端 x86 安装）。
+默认外置媒体目录：`/var/lib/family-photo-gallery/photos`。支持跨架构部署（例如本机 ARM 打包、远端 x86 安装）。
 
-### 方式二：容器镜像（Podman / Docker）
+### 方式二：容器部署（Podman Compose，app + db）
 
-单容器同时提供前端静态页与后端 API（通过环境变量 `GALLERY_STATIC_ROOT`）；数据与照片请挂载卷持久化。
+默认提供 `app + mysql` 两个容器，`app` 同时提供前端静态页与后端 API。
 
-**构建镜像**
-
-```bash
-podman build -t wutong:latest .
-```
-
-（使用 Docker 时将 `podman` 换成 `docker`。）
-
-**运行示例**
+**启动**
 
 ```bash
-podman run --rm -p 8080:8000 \
-  -v wutong-data:/data/app \
-  -v wutong-photos:/data/photos \
-  wutong:latest
+podman-compose -f podman-compose.yml up -d --build
 ```
 
-或使用脚本：`chmod +x deploy/podman-run.sh && ./deploy/podman-run.sh`  
-浏览器访问：`http://localhost:8080`（映射到容器内 `8000`）。可用环境变量 `HOST_PORT`、`CONTAINER_ENGINE=docker` 调整端口或改用 Docker。
+**停止**
+
+```bash
+podman-compose -f podman-compose.yml down
+```
+
+服务端口：
+
+- Web/API：`http://127.0.0.1:8080`
+- MySQL：`127.0.0.1:3306`（默认账号 `wutong/wutong`，库 `wutong`）
+
+如需单容器直连现有 MySQL，也可使用：
+
+```bash
+chmod +x deploy/podman-run.sh
+./deploy/podman-run.sh
+```
 
 ## 后端关键配置
 
 后端配置位于 `backend/app/core/config.py`，支持通过环境变量覆盖（前缀 `GALLERY_`），例如：
 
-- `GALLERY_DATA_DIR`
+- `GALLERY_DATABASE_URL`
 - `GALLERY_PHOTOS_ROOT`
 - `GALLERY_TOKEN_TTL_DAYS`
 - `GALLERY_SCAN_INTERVAL_SECONDS`
@@ -122,7 +133,7 @@ podman run --rm -p 8080:8000 \
 - `GALLERY_ADMIN_DEFAULT_PASSWORD`
 - `GALLERY_STATIC_ROOT`（容器镜像内已设置；服务器直接部署一般不设，由 nginx 提供前端）
 
-本地开发默认使用 `backend/data` 与 `backend/photos_root`。服务器直接部署时，`deploy` 脚本会在 systemd 中注入 `GALLERY_DATA_DIR`、`GALLERY_PHOTOS_ROOT`。
+服务器直接部署时，`deploy` 脚本会在 systemd 中注入 `GALLERY_DATABASE_URL` 与 `GALLERY_PHOTOS_ROOT`。
 
 ## 后续建议
 

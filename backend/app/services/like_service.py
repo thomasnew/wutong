@@ -1,37 +1,72 @@
+from contextlib import contextmanager
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.db.models import LikeModel
 from app.schemas.models import Like
 from app.services.security import now_utc
-from app.storage.json_store import JsonStore
 
 
 class LikeService:
-    def __init__(self, store: JsonStore) -> None:
-        self.store = store
-        self.file_name = "likes.json"
+    def __init__(self, session_factory: sessionmaker) -> None:
+        self.session_factory = session_factory
+
+    @contextmanager
+    def _session(self) -> Session:
+        db = self.session_factory()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    @staticmethod
+    def _to_like(row: LikeModel) -> Like:
+        return Like(photo_id=row.photo_id, user_id=row.user_id, created_at=row.created_at)
 
     def count_by_photo(self, photo_id: str) -> int:
-        rows = self.store.read(self.file_name)
-        return len([r for r in rows if r["photo_id"] == photo_id])
+        with self._session() as db:
+            count = db.execute(
+                select(func.count(LikeModel.id)).where(LikeModel.photo_id == photo_id)
+            ).scalar_one()
+            return int(count)
 
     def list_by_photo(self, photo_id: str) -> list[Like]:
-        rows = [Like(**r) for r in self.store.read(self.file_name)]
-        return [r for r in rows if r.photo_id == photo_id]
+        with self._session() as db:
+            rows = db.execute(
+                select(LikeModel).where(LikeModel.photo_id == photo_id).order_by(LikeModel.created_at.desc())
+            ).scalars().all()
+            return [self._to_like(row) for row in rows]
 
     def list_all(self) -> list[Like]:
-        return [Like(**r) for r in self.store.read(self.file_name)]
+        with self._session() as db:
+            rows = db.execute(select(LikeModel)).scalars().all()
+            return [self._to_like(row) for row in rows]
 
     def has_liked(self, photo_id: str, user_id: str) -> bool:
-        rows = self.store.read(self.file_name)
-        return any(r for r in rows if r["photo_id"] == photo_id and r["user_id"] == user_id)
+        with self._session() as db:
+            row = db.execute(
+                select(LikeModel.id).where(LikeModel.photo_id == photo_id, LikeModel.user_id == user_id)
+            ).first()
+            return row is not None
 
     def like(self, photo_id: str, user_id: str) -> None:
-        rows = self.store.read(self.file_name)
-        if any(r for r in rows if r["photo_id"] == photo_id and r["user_id"] == user_id):
-            return
-        like = Like(photo_id=photo_id, user_id=user_id, created_at=now_utc())
-        rows.append(like.model_dump(mode="json"))
-        self.store.write(self.file_name, rows)
+        with self._session() as db:
+            exists = db.execute(
+                select(LikeModel.id).where(LikeModel.photo_id == photo_id, LikeModel.user_id == user_id)
+            ).first()
+            if exists:
+                return
+            db.add(LikeModel(photo_id=photo_id, user_id=user_id, created_at=now_utc()))
 
     def unlike(self, photo_id: str, user_id: str) -> None:
-        rows = self.store.read(self.file_name)
-        rows = [r for r in rows if not (r["photo_id"] == photo_id and r["user_id"] == user_id)]
-        self.store.write(self.file_name, rows)
+        with self._session() as db:
+            row = db.execute(
+                select(LikeModel).where(LikeModel.photo_id == photo_id, LikeModel.user_id == user_id)
+            ).scalars().first()
+            if row:
+                db.delete(row)

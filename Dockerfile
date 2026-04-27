@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend/app /app/backend/app
 COPY --from=frontend-build /build/frontend/dist /app/frontend/dist
 
-ENV GALLERY_DATA_DIR=/data/app \
+ENV GALLERY_DATABASE_URL=mysql+pymysql://wutong:wutong@db:3306/wutong \
     GALLERY_PHOTOS_ROOT=/data/photos \
     GALLERY_STATIC_ROOT=/app/frontend/dist
 

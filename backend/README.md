@@ -2,15 +2,25 @@
 
 ## 技术栈
 - FastAPI
-- JSON 文件存储
+- MySQL（SQLAlchemy + PyMySQL）
 - Pillow(EXIF 读取)
 
 ## 快速启动
 1. 创建并激活虚拟环境
 2. 安装依赖：
    - `pip install -r backend/requirements.txt`
-3. 运行：
+3. 准备 MySQL 并设置环境变量：
+   - `export GALLERY_DATABASE_URL='mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong'`
+4. 运行：
    - `uvicorn app.main:app --reload --app-dir backend`
+
+## 从 JSON 迁移到 MySQL（一次性）
+
+如果历史版本使用过 `backend/data/*.json`，可执行：
+
+- `python backend/scripts/migrate_json_to_mysql.py --json-dir backend/data`
+
+迁移脚本支持重复执行（按主键/唯一键更新，不会重复新增同一条记录）。
 
 ## 默认账号
 - 用户名：`admin`
@@ -18,9 +28,8 @@
 
 ## 目录说明
 - `backend/photos_root/`：本地开发默认照片目录
-- `backend/data/`：本地开发默认系统 JSON 数据目录（用户、照片、评论、点赞、token）
-- 生产环境建议通过环境变量外置目录：
-  - `GALLERY_DATA_DIR=/var/lib/family-photo-gallery/data`
+- 通过环境变量配置：
+  - `GALLERY_DATABASE_URL=mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong`
   - `GALLERY_PHOTOS_ROOT=/var/lib/family-photo-gallery/photos`
 
 ## 已实现能力

@@ -1,0 +1,41 @@
+services:
+  db:
+    image: docker.io/library/mysql:8.4
+    container_name: wutong-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: wutong
+      MYSQL_USER: wutong
+      MYSQL_PASSWORD: wutong
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - wutong-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -prootpass --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wutong-app
+    environment:
+      GALLERY_DATABASE_URL: mysql+pymysql://wutong:wutong@db:3306/wutong
+      GALLERY_PHOTOS_ROOT: /data/photos
+      GALLERY_STATIC_ROOT: /app/frontend/dist
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8000"
+    volumes:
+      - wutong-photos:/data/photos
+    restart: unless-stopped
+
+volumes:
+  wutong-mysql:
+  wutong-photos:

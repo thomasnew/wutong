@@ -9,8 +9,8 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 RELOAD_NGINX="true"
 SKIP_GIT_PULL="false"
-DATA_DIR="/var/lib/family-photo-gallery/data"
 PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
+DATABASE_URL="mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
 
 usage() {
   cat <<EOF
@@ -20,8 +20,8 @@ usage() {
     [--remote origin] \\
     [--remote-dir /opt/family-photo-gallery] \\
     [--service-name family-photo-gallery] \\
-    [--data-dir /var/lib/family-photo-gallery/data] \\
     [--photos-root /var/lib/family-photo-gallery/photos] \\
+    [--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong] \\
     [--no-nginx-reload] \\
     [--skip-git-pull]
 EOF
@@ -45,12 +45,12 @@ while [[ $# -gt 0 ]]; do
       SERVICE_NAME="$2"
       shift 2
       ;;
-    --data-dir)
-      DATA_DIR="$2"
-      shift 2
-      ;;
     --photos-root)
       PHOTOS_ROOT="$2"
+      shift 2
+      ;;
+    --database-url)
+      DATABASE_URL="$2"
       shift 2
       ;;
     --no-nginx-reload)
@@ -107,7 +107,7 @@ npm --prefix "$ROOT_DIR/frontend" run build
 
 echo "[4/6] 同步代码与资源到部署目录"
 sudo mkdir -p "$REMOTE_DIR"
-sudo mkdir -p "$DATA_DIR" "$PHOTOS_ROOT"
+sudo mkdir -p "$PHOTOS_ROOT"
 sudo rsync -a --delete \
   --exclude=".venv" \
   --exclude="__pycache__" \
@@ -116,7 +116,12 @@ sudo rsync -a --delete \
 sudo cp "$ROOT_DIR/backend/requirements.txt" "$REMOTE_DIR/backend/requirements.txt"
 sudo rsync -a "$ROOT_DIR/frontend/dist/" "$REMOTE_DIR/frontend/dist/"
 sudo chown -R "$USER":"$USER" "$REMOTE_DIR"
-sudo chown -R "$USER":"$USER" "$DATA_DIR" "$PHOTOS_ROOT"
+sudo chown -R "$USER":"$USER" "$PHOTOS_ROOT"
+
+OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.service.d"
+OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
+sudo mkdir -p "$OVERRIDE_DIR"
+printf "[Service]\nEnvironment=GALLERY_DATABASE_URL=%s\nEnvironment=GALLERY_PHOTOS_ROOT=%s\n" "$DATABASE_URL" "$PHOTOS_ROOT" | sudo tee "$OVERRIDE_FILE" >/dev/null
 
 echo "[5/6] 重启后端服务"
 sudo systemctl daemon-reload

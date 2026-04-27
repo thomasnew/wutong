@@ -7,6 +7,9 @@ from fastapi.staticfiles import StaticFiles
 from app.api.deps import photo_service, user_service
 from app.api.routes import router
 from app.core.config import settings
+from app.db.base import Base
+from app.db.session import engine
+from app.db import models as _db_models  # noqa: F401
 
 app = FastAPI(title=settings.app_name)
 app.include_router(router)
@@ -34,6 +37,7 @@ async def _periodic_scan() -> None:
 @app.on_event("startup")
 async def startup() -> None:
     global _scan_task
+    Base.metadata.create_all(bind=engine)
     settings.photos_root.mkdir(parents=True, exist_ok=True)
     user_service.ensure_admin(settings.admin_default_username, settings.admin_default_password)
     photo_service.scan()

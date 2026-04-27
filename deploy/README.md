@@ -47,14 +47,14 @@ bash deploy/deploy_to_server.sh \
 - `--service-name family-photo-gallery`：systemd 服务名
 - `--site-name family-photo-gallery`：nginx 站点名
 - `--listen-port 8090`：nginx 监听端口（默认 8090）
-- `--data-dir /var/lib/family-photo-gallery/data`：运行数据目录（仓库外）
 - `--photos-root /var/lib/family-photo-gallery/photos`：照片目录（仓库外）
+- `--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong`：MySQL 连接串
 - `--skip-package`：跳过重新打包，直接部署最近一次包
 
 重要说明：
 
-- 生产环境的数据与媒体目录默认在仓库外（`/var/lib/family-photo-gallery`）。
-- `git pull` / 代码更新不会删除这些目录中的照片、点赞、评论数据。
+- 生产环境的媒体目录默认在仓库外（`/var/lib/family-photo-gallery/photos`）。
+- `git pull` / 代码更新不会删除照片目录中的文件；互动数据存放在 MySQL。
 
 ## 部署后的服务位置
 
@@ -85,8 +85,8 @@ bash deploy/update_to_server.sh
 - `--remote origin`：远端名
 - `--remote-dir /opt/family-photo-gallery`：部署目录
 - `--service-name family-photo-gallery`：systemd 服务名
-- `--data-dir /var/lib/family-photo-gallery/data`：运行数据目录（用于初始化目录）
 - `--photos-root /var/lib/family-photo-gallery/photos`：照片目录（用于初始化目录）
+- `--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong`：MySQL 连接串
 - `--no-nginx-reload`：跳过 nginx 重载
 - `--skip-git-pull`：跳过拉代码（只做本地增量发布）
 
