@@ -52,6 +52,12 @@ body { margin: 0; }
 .rank-card h4 {
   margin: 0 0 8px;
 }
+.rank-title-mobile {
+  display: none;
+}
+.rank-title-desktop {
+  display: inline;
+}
 .rank-card ol {
   margin: 0;
   padding-left: 20px;
@@ -371,6 +377,30 @@ button {
 }
 
 @media (max-width: 768px) {
+  .rank-title-mobile {
+    display: inline;
+  }
+  .rank-title-desktop {
+    display: none;
+  }
+  .rank-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .rank-card {
+    padding: 6px;
+  }
+  .rank-card h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .rank-card ol {
+    padding-left: 0;
+    list-style: none;
+    gap: 4px;
+  }
   .content {
     padding: 10px;
   }
@@ -444,13 +474,22 @@ button {
     padding: 4px 8px;
   }
   .rank-card li {
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
   }
-  .rank-thumb-wrap,
+  .rank-thumb-wrap {
+    width: 100%;
+    max-width: 96px;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
+  }
   .rank-thumb {
-    width: 52px;
-    height: 52px;
-    flex: 0 0 52px;
+    width: 100%;
+    height: 100%;
+  }
+  .rank-main {
+    display: none;
   }
   .rank-head {
     font-size: 12px;

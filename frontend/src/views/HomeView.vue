@@ -7,7 +7,10 @@
     <p class="error" v-if="error">{{ error }}</p>
     <div class="rank-grid">
       <article class="rank-card">
-        <h4>最多点赞 Top 10</h4>
+        <h4>
+          <span class="rank-title-mobile">最多点赞</span>
+          <span class="rank-title-desktop">最多点赞 Top 10</span>
+        </h4>
         <ol>
           <li v-for="item in stats.top_liked" :key="item.photo_id" @click="openDetail(item.photo_id)">
             <div
@@ -69,7 +72,10 @@
         </ol>
       </article>
       <article class="rank-card">
-        <h4>最多评论 Top 10</h4>
+        <h4>
+          <span class="rank-title-mobile">最多评论</span>
+          <span class="rank-title-desktop">最多评论 Top 10</span>
+        </h4>
         <ol>
           <li v-for="item in stats.top_commented" :key="item.photo_id" @click="openDetail(item.photo_id)">
             <div
@@ -131,7 +137,10 @@
         </ol>
       </article>
       <article class="rank-card">
-        <h4>最新更新 Top 10</h4>
+        <h4>
+          <span class="rank-title-mobile">最近更新</span>
+          <span class="rank-title-desktop">最新更新 Top 10</span>
+        </h4>
         <ol>
           <li v-for="item in stats.latest_updated" :key="item.photo_id" @click="openDetail(item.photo_id)">
             <div
