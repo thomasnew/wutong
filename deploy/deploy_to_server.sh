@@ -12,6 +12,8 @@ SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
 LISTEN_PORT="8090"
+DATA_DIR="/var/lib/family-photo-gallery/data"
+PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
 SKIP_PACKAGE="false"
 ARCHIVE_PATH=""
 
@@ -30,6 +32,8 @@ usage() {
     [--site-name family-photo-gallery] \\
     [--domain your.domain.com] \\
     [--listen-port 8090] \\
+    [--data-dir /var/lib/family-photo-gallery/data] \\
+    [--photos-root /var/lib/family-photo-gallery/photos] \\
     [--skip-package]
 EOF
 }
@@ -70,6 +74,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --listen-port)
       LISTEN_PORT="$2"
+      shift 2
+      ;;
+    --data-dir)
+      DATA_DIR="$2"
+      shift 2
+      ;;
+    --photos-root)
+      PHOTOS_ROOT="$2"
       shift 2
       ;;
     --skip-package)
@@ -144,7 +156,9 @@ ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
     --service-name ${SERVICE_NAME} \
     --site-name ${SITE_NAME} \
     --domain ${DOMAIN} \
-    --listen-port ${LISTEN_PORT}"
+    --listen-port ${LISTEN_PORT} \
+    --data-dir ${DATA_DIR} \
+    --photos-root ${PHOTOS_ROOT}"
 
 echo "[4/4] 清理远程脚本"
 ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "rm -f ${REMOTE_SCRIPT}"

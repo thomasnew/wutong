@@ -24,10 +24,8 @@ rsync -a \
   "$ROOT_DIR/backend/app" "$STAGE_DIR/backend/"
 cp "$ROOT_DIR/backend/requirements.txt" "$STAGE_DIR/backend/requirements.txt"
 
-echo "[4/5] 打包前端产物与数据目录"
+echo "[4/5] 打包前端产物"
 rsync -a "$ROOT_DIR/frontend/dist" "$STAGE_DIR/frontend/"
-rsync -a "$ROOT_DIR/backend/data" "$STAGE_DIR/backend/"
-rsync -a "$ROOT_DIR/backend/photos_root" "$STAGE_DIR/backend/"
 
 echo "[5/5] 生成压缩包"
 tar -C "$DIST_DIR" -czf "$ARCHIVE_PATH" "$RELEASE_NAME"

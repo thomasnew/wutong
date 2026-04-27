@@ -23,8 +23,8 @@
 
 - `frontend/`：前端工程
 - `backend/`：后端工程
-- `backend/photos_root/`：照片根目录（支持软链接到其他目录）
-- `backend/data/`：用户/照片/评论/点赞/token 等 JSON 数据
+- `backend/photos_root/`：本地开发默认照片根目录（生产环境建议外置）
+- `backend/data/`：本地开发默认 JSON 数据目录（生产环境建议外置）
 - `deploy/`：打包与自动部署脚本
 
 ## 本地开发
@@ -78,6 +78,7 @@ bash deploy/deploy_to_server.sh \
 
 - 支持跨架构部署（例如本地 `arm64` Mac mini 部署到 `x86_64` Linux）
 - 发布包不携带本机虚拟环境，远端按自身架构重建 Python 依赖
+- 生产环境默认使用仓库外目录保存数据与媒体：`/var/lib/family-photo-gallery/data`、`/var/lib/family-photo-gallery/photos`
 
 ## 后端关键配置
 
@@ -89,6 +90,8 @@ bash deploy/deploy_to_server.sh \
 - `GALLERY_SCAN_INTERVAL_SECONDS`
 - `GALLERY_ADMIN_DEFAULT_USERNAME`
 - `GALLERY_ADMIN_DEFAULT_PASSWORD`
+
+提示：本地开发默认使用 `backend/data` 与 `backend/photos_root`；生产部署脚本会在 systemd 中注入 `GALLERY_DATA_DIR` / `GALLERY_PHOTOS_ROOT` 指向仓库外目录，避免代码更新影响线上数据。
 
 ## 后续建议
 

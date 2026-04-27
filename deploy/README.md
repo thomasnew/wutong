@@ -2,7 +2,7 @@
 
 本目录提供了两个核心能力：
 
-1. **整体打包**：把前端构建产物 + 后端代码 + 数据目录打成发布包。
+1. **整体打包**：把前端构建产物 + 后端代码打成发布包（不包含运行数据）。
 2. **自动部署**：把发布包上传到目标服务器，并自动配置 `systemd + nginx`。
 
 ## 文件说明
@@ -47,7 +47,14 @@ bash deploy/deploy_to_server.sh \
 - `--service-name family-photo-gallery`：systemd 服务名
 - `--site-name family-photo-gallery`：nginx 站点名
 - `--listen-port 8090`：nginx 监听端口（默认 8090）
+- `--data-dir /var/lib/family-photo-gallery/data`：运行数据目录（仓库外）
+- `--photos-root /var/lib/family-photo-gallery/photos`：照片目录（仓库外）
 - `--skip-package`：跳过重新打包，直接部署最近一次包
+
+重要说明：
+
+- 生产环境的数据与媒体目录默认在仓库外（`/var/lib/family-photo-gallery`）。
+- `git pull` / 代码更新不会删除这些目录中的照片、点赞、评论数据。
 
 ## 部署后的服务位置
 
@@ -78,6 +85,8 @@ bash deploy/update_to_server.sh
 - `--remote origin`：远端名
 - `--remote-dir /opt/family-photo-gallery`：部署目录
 - `--service-name family-photo-gallery`：systemd 服务名
+- `--data-dir /var/lib/family-photo-gallery/data`：运行数据目录（用于初始化目录）
+- `--photos-root /var/lib/family-photo-gallery/photos`：照片目录（用于初始化目录）
 - `--no-nginx-reload`：跳过 nginx 重载
 - `--skip-git-pull`：跳过拉代码（只做本地增量发布）
 

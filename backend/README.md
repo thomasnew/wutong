@@ -17,8 +17,11 @@
 - 密码：`admin123`
 
 ## 目录说明
-- `backend/photos_root/`：放置待扫描的照片(`jpg/jpeg/png`)
-- `backend/data/`：系统 JSON 数据（用户、照片、评论、点赞、token）
+- `backend/photos_root/`：本地开发默认照片目录
+- `backend/data/`：本地开发默认系统 JSON 数据目录（用户、照片、评论、点赞、token）
+- 生产环境建议通过环境变量外置目录：
+  - `GALLERY_DATA_DIR=/var/lib/family-photo-gallery/data`
+  - `GALLERY_PHOTOS_ROOT=/var/lib/family-photo-gallery/photos`
 
 ## 已实现能力
 - 简化 token 登录鉴权

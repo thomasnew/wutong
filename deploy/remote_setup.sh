@@ -8,6 +8,8 @@ SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
 LISTEN_PORT="8090"
+DATA_DIR="/var/lib/family-photo-gallery/data"
+PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,6 +35,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --listen-port)
       LISTEN_PORT="$2"
+      shift 2
+      ;;
+    --data-dir)
+      DATA_DIR="$2"
+      shift 2
+      ;;
+    --photos-root)
+      PHOTOS_ROOT="$2"
       shift 2
       ;;
     *)
@@ -65,7 +75,7 @@ fi
 REMOTE_ARCH="$(uname -m)"
 echo "目标机器架构: ${REMOTE_ARCH}"
 
-echo "[1/7] 安装系统依赖 (python3-venv + nginx + 构建依赖)"
+echo "[1/8] 安装系统依赖 (python3-venv + nginx + 构建依赖)"
 sudo apt-get update
 sudo apt-get install -y \
   python3 \
@@ -76,17 +86,21 @@ sudo apt-get install -y \
   zlib1g-dev \
   nginx
 
-echo "[2/7] 解压发布包到 $REMOTE_DIR"
+echo "[2/8] 解压发布包到 $REMOTE_DIR"
 sudo mkdir -p "$REMOTE_DIR"
 sudo tar -xzf "$ARCHIVE_PATH" -C "$REMOTE_DIR" --strip-components=1
 sudo chown -R "$USER":"$USER" "$REMOTE_DIR"
 
-echo "[3/7] 创建虚拟环境并安装后端依赖"
+echo "[3/8] 创建虚拟环境并安装后端依赖"
 python3 -m venv "$REMOTE_DIR/.venv"
 "$REMOTE_DIR/.venv/bin/pip" install --upgrade pip
 "$REMOTE_DIR/.venv/bin/pip" install -r "$REMOTE_DIR/backend/requirements.txt"
 
-echo "[4/7] 写入 systemd 服务"
+echo "[4/8] 初始化运行数据目录（仓库外）"
+sudo mkdir -p "$DATA_DIR" "$PHOTOS_ROOT"
+sudo chown -R "$USER":"$USER" "$DATA_DIR" "$PHOTOS_ROOT"
+
+echo "[5/8] 写入 systemd 服务"
 SERVICE_FILE="/tmp/${SERVICE_NAME}.service"
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
@@ -97,6 +111,8 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$REMOTE_DIR
+Environment=GALLERY_DATA_DIR=$DATA_DIR
+Environment=GALLERY_PHOTOS_ROOT=$PHOTOS_ROOT
 ExecStart=$REMOTE_DIR/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir $REMOTE_DIR/backend
 Restart=always
 RestartSec=3
@@ -106,7 +122,7 @@ WantedBy=multi-user.target
 EOF
 sudo mv "$SERVICE_FILE" "/etc/systemd/system/${SERVICE_NAME}.service"
 
-echo "[5/7] 写入 nginx 站点配置"
+echo "[6/8] 写入 nginx 站点配置"
 NGINX_FILE="/tmp/${SITE_NAME}.conf"
 cat > "$NGINX_FILE" <<EOF
 server {
@@ -140,13 +156,13 @@ EOF
 sudo mv "$NGINX_FILE" "/etc/nginx/sites-available/${SITE_NAME}.conf"
 sudo ln -sf "/etc/nginx/sites-available/${SITE_NAME}.conf" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"
 
-echo "[6/7] 启动/重启服务"
+echo "[7/8] 启动/重启服务"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "${SERVICE_NAME}.service"
 sudo nginx -t
 sudo systemctl restart nginx
 
-echo "[7/7] 清理临时包"
+echo "[8/8] 清理临时包"
 rm -f "$ARCHIVE_PATH"
 
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -157,6 +173,8 @@ fi
 echo "部署完成。"
 echo "- API: 由 systemd 服务 ${SERVICE_NAME}.service 管理"
 echo "- Web: 由 nginx 站点 ${SITE_NAME}.conf 提供"
+echo "- 数据目录: ${DATA_DIR}"
+echo "- 媒体目录: ${PHOTOS_ROOT}"
 echo "- 监听端口: ${LISTEN_PORT}"
 echo "- 可访问地址(IP): http://${SERVER_IP}:${LISTEN_PORT}/"
 if [[ "${DOMAIN}" != "_" ]]; then

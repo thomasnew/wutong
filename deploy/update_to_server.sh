@@ -9,6 +9,8 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 RELOAD_NGINX="true"
 SKIP_GIT_PULL="false"
+DATA_DIR="/var/lib/family-photo-gallery/data"
+PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
 
 usage() {
   cat <<EOF
@@ -18,6 +20,8 @@ usage() {
     [--remote origin] \\
     [--remote-dir /opt/family-photo-gallery] \\
     [--service-name family-photo-gallery] \\
+    [--data-dir /var/lib/family-photo-gallery/data] \\
+    [--photos-root /var/lib/family-photo-gallery/photos] \\
     [--no-nginx-reload] \\
     [--skip-git-pull]
 EOF
@@ -39,6 +43,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --service-name)
       SERVICE_NAME="$2"
+      shift 2
+      ;;
+    --data-dir)
+      DATA_DIR="$2"
+      shift 2
+      ;;
+    --photos-root)
+      PHOTOS_ROOT="$2"
       shift 2
       ;;
     --no-nginx-reload)
@@ -95,6 +107,7 @@ npm --prefix "$ROOT_DIR/frontend" run build
 
 echo "[4/6] 同步代码与资源到部署目录"
 sudo mkdir -p "$REMOTE_DIR"
+sudo mkdir -p "$DATA_DIR" "$PHOTOS_ROOT"
 sudo rsync -a --delete \
   --exclude=".venv" \
   --exclude="__pycache__" \
@@ -102,9 +115,8 @@ sudo rsync -a --delete \
   "$ROOT_DIR/backend/app/" "$REMOTE_DIR/backend/app/"
 sudo cp "$ROOT_DIR/backend/requirements.txt" "$REMOTE_DIR/backend/requirements.txt"
 sudo rsync -a "$ROOT_DIR/frontend/dist/" "$REMOTE_DIR/frontend/dist/"
-sudo rsync -a "$ROOT_DIR/backend/data/" "$REMOTE_DIR/backend/data/"
-sudo rsync -a "$ROOT_DIR/backend/photos_root/" "$REMOTE_DIR/backend/photos_root/"
 sudo chown -R "$USER":"$USER" "$REMOTE_DIR"
+sudo chown -R "$USER":"$USER" "$DATA_DIR" "$PHOTOS_ROOT"
 
 echo "[5/6] 重启后端服务"
 sudo systemctl daemon-reload
