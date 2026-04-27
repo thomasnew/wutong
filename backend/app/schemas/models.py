@@ -28,6 +28,7 @@ class Photo(BaseModel):
     relative_path: str
     folder_path: str
     filename: str
+    media_type: Literal["image", "video"] = "image"
     title: str = ""
     description: str = ""
     tags: list[str] = Field(default_factory=list)

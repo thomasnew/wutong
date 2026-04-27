@@ -20,7 +20,9 @@ class PhotoService:
         self.store = store
         self.photos_root = photos_root
         self.file_name = "photos.json"
-        self.allowed = {".jpg", ".jpeg", ".png"}
+        self.image_exts = {".jpg", ".jpeg", ".png", ".webp"}
+        self.video_exts = {".mp4", ".mov", ".webm", ".m4v"}
+        self.allowed = self.image_exts | self.video_exts
 
     def list_photos(self, folder: str | None = None) -> list[Photo]:
         rows = [Photo(**row) for row in self.store.read(self.file_name)]
@@ -101,7 +103,8 @@ class PhotoService:
                 continue
             rel = file_path.relative_to(self.photos_root).as_posix()
             seen.add(rel)
-            meta = self._extract_metadata(file_path)
+            media_type = self._detect_media_type(file_path)
+            meta = self._extract_metadata(file_path, media_type=media_type)
             if rel not in existing:
                 parent = Path(rel).parent.as_posix()
                 folder_path = "" if parent == "." else parent
@@ -110,6 +113,7 @@ class PhotoService:
                     relative_path=rel,
                     folder_path=folder_path,
                     filename=file_path.name,
+                    media_type=media_type,
                     captured_at=meta["captured_at"],
                     gps_lat=meta["gps_lat"],
                     gps_lng=meta["gps_lng"],
@@ -123,6 +127,7 @@ class PhotoService:
             else:
                 p = existing[rel]
                 p.filename = file_path.name
+                p.media_type = media_type
                 parent = Path(rel).parent.as_posix()
                 p.folder_path = "" if parent == "." else parent
                 p.updated_at = now
@@ -145,30 +150,31 @@ class PhotoService:
         )
         return {"created": created, "updated": updated, "deleted": deleted}
 
-    def _extract_metadata(self, path: Path) -> dict:
+    def _extract_metadata(self, path: Path, media_type: str) -> dict:
         captured_at: datetime | None = None
         gps_lat: float | None = None
         gps_lng: float | None = None
         metadata_source = "unknown"
-        try:
-            with Image.open(path) as img:
-                exif = img.getexif()
-                exif_map = {TAGS.get(k, k): v for k, v in exif.items()}
-                if "DateTimeOriginal" in exif_map:
-                    raw = exif_map["DateTimeOriginal"]
-                    captured_at = _to_utc(datetime.strptime(raw, "%Y:%m:%d %H:%M:%S"))
-                    metadata_source = "exif"
-                gps = exif_map.get("GPSInfo")
-                if gps:
-                    gps_map = {GPSTAGS.get(k, k): v for k, v in gps.items()}
-                    gps_lat = self._gps_to_decimal(
-                        gps_map.get("GPSLatitude"), gps_map.get("GPSLatitudeRef")
-                    )
-                    gps_lng = self._gps_to_decimal(
-                        gps_map.get("GPSLongitude"), gps_map.get("GPSLongitudeRef")
-                    )
-        except Exception:
-            pass
+        if media_type == "image":
+            try:
+                with Image.open(path) as img:
+                    exif = img.getexif()
+                    exif_map = {TAGS.get(k, k): v for k, v in exif.items()}
+                    if "DateTimeOriginal" in exif_map:
+                        raw = exif_map["DateTimeOriginal"]
+                        captured_at = _to_utc(datetime.strptime(raw, "%Y:%m:%d %H:%M:%S"))
+                        metadata_source = "exif"
+                    gps = exif_map.get("GPSInfo")
+                    if gps:
+                        gps_map = {GPSTAGS.get(k, k): v for k, v in gps.items()}
+                        gps_lat = self._gps_to_decimal(
+                            gps_map.get("GPSLatitude"), gps_map.get("GPSLatitudeRef")
+                        )
+                        gps_lng = self._gps_to_decimal(
+                            gps_map.get("GPSLongitude"), gps_map.get("GPSLongitudeRef")
+                        )
+            except Exception:
+                pass
 
         if not captured_at:
             captured_at = _to_utc(datetime.fromtimestamp(path.stat().st_mtime))
@@ -180,6 +186,12 @@ class PhotoService:
             "gps_lng": gps_lng,
             "metadata_source": metadata_source,
         }
+
+    def _detect_media_type(self, path: Path) -> str:
+        ext = path.suffix.lower()
+        if ext in self.video_exts:
+            return "video"
+        return "image"
 
     def _walk_photos_root(self) -> tuple[list[Path], list[Path]]:
         dirs: list[Path] = []

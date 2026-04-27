@@ -40,7 +40,13 @@
         <h3>{{ detail.title || detail.filename }}</h3>
         <button @click="detail = null">关闭</button>
       </header>
-      <img class="detail-image" :src="photoUrl(detail.relative_path)" :alt="detail.filename" />
+      <img
+        v-if="detail.media_type !== 'video'"
+        class="detail-image"
+        :src="photoUrl(detail.relative_path)"
+        :alt="detail.filename"
+      />
+      <video v-else class="detail-video" :src="photoUrl(detail.relative_path)" controls preload="metadata"></video>
       <p>{{ detail.description || "暂无描述" }}</p>
       <p>地点：{{ detail.location_text || "未知" }}</p>
       <div class="actions">

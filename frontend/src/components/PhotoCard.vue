@@ -7,7 +7,8 @@
     @mouseleave="$emit('leave', photo.id)"
   >
     <div class="photo-thumb" :class="`photo-thumb--${size}`">
-      <img :src="photoUrl(photo.relative_path)" :alt="photo.filename" />
+      <img v-if="photo.media_type !== 'video'" :src="photoUrl(photo.relative_path)" :alt="photo.filename" />
+      <video v-else class="thumb-video" :src="photoUrl(photo.relative_path)" muted preload="metadata"></video>
     </div>
     <div class="photo-meta">
       <h4>{{ photo.title || photo.filename }}</h4>
