@@ -11,11 +11,15 @@
       <video
         v-else
         class="thumb-video"
-        :src="photoUrl(photo.relative_path)"
-        :type="videoMime(photo.relative_path)"
         muted
+        playsinline
+        webkit-playsinline="true"
+        autoplay
+        loop
         preload="metadata"
-      ></video>
+      >
+        <source :src="photoUrl(photo.relative_path)" :type="videoMime(photo.relative_path)" />
+      </video>
       <span v-if="photo.media_type === 'video'" class="video-badge">▶</span>
     </div>
     <div class="photo-meta">

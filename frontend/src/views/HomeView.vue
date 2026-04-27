@@ -24,13 +24,16 @@
               <video
                 v-else
                 class="rank-thumb rank-thumb-video"
-                :src="photoUrl(item.relative_path)"
-                :type="videoMime(item.relative_path)"
                 muted
                 playsinline
+                webkit-playsinline="true"
+                autoplay
+                loop
                 preload="auto"
                 @loadeddata="seekVideoToStart"
-              ></video>
+              >
+                <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
+              </video>
               <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
@@ -83,13 +86,16 @@
               <video
                 v-else
                 class="rank-thumb rank-thumb-video"
-                :src="photoUrl(item.relative_path)"
-                :type="videoMime(item.relative_path)"
                 muted
                 playsinline
+                webkit-playsinline="true"
+                autoplay
+                loop
                 preload="auto"
                 @loadeddata="seekVideoToStart"
-              ></video>
+              >
+                <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
+              </video>
               <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
@@ -142,13 +148,16 @@
               <video
                 v-else
                 class="rank-thumb rank-thumb-video"
-                :src="photoUrl(item.relative_path)"
-                :type="videoMime(item.relative_path)"
                 muted
                 playsinline
+                webkit-playsinline="true"
+                autoplay
+                loop
                 preload="auto"
                 @loadeddata="seekVideoToStart"
-              ></video>
+              >
+                <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
+              </video>
               <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
@@ -201,11 +210,13 @@
       <video
         v-else
         class="detail-video"
-        :src="photoUrl(detail.relative_path)"
-        :type="videoMime(detail.relative_path)"
         controls
+        playsinline
+        webkit-playsinline="true"
         preload="metadata"
-      ></video>
+      >
+        <source :src="photoUrl(detail.relative_path)" :type="videoMime(detail.relative_path)" />
+      </video>
       <p>{{ detail.description || "暂无描述" }}</p>
       <p>地点：{{ detail.location_text || "未知" }}</p>
       <div class="actions">

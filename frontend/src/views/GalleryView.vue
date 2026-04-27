@@ -49,11 +49,13 @@
       <video
         v-else
         class="detail-video"
-        :src="photoUrl(detail.relative_path)"
-        :type="videoMime(detail.relative_path)"
         controls
+        playsinline
+        webkit-playsinline="true"
         preload="metadata"
-      ></video>
+      >
+        <source :src="photoUrl(detail.relative_path)" :type="videoMime(detail.relative_path)" />
+      </video>
       <p>{{ detail.description || "暂无描述" }}</p>
       <p>地点：{{ detail.location_text || "未知" }}</p>
       <div class="actions">
