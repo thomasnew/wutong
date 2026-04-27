@@ -108,6 +108,12 @@ class PhotoService:
 
     def scan(self) -> dict[str, int]:
         existing = {p.relative_path: p for p in self.list_photos()}
+        id_remap: dict[str, str] = {}
+        for rel, p in existing.items():
+            stable_id = self._stable_photo_id(rel)
+            if p.id != stable_id:
+                id_remap[p.id] = stable_id
+                p.id = stable_id
         now = now_utc()
         seen: set[str] = set()
         created = 0
@@ -125,7 +131,7 @@ class PhotoService:
                 parent = Path(rel).parent.as_posix()
                 folder_path = "" if parent == "." else parent
                 photo = Photo(
-                    id=str(uuid.uuid4()),
+                    id=self._stable_photo_id(rel),
                     relative_path=rel,
                     folder_path=folder_path,
                     filename=file_path.name,
@@ -164,6 +170,9 @@ class PhotoService:
             self.file_name,
             [p.model_dump(mode="json") for p in existing.values()],
         )
+        if id_remap:
+            self._remap_relation_ids("likes.json", id_remap)
+            self._remap_relation_ids("comments.json", id_remap)
         return {"created": created, "updated": updated, "deleted": deleted}
 
     def _extract_metadata(self, path: Path, media_type: str) -> dict:
@@ -208,6 +217,20 @@ class PhotoService:
         if ext in self.video_exts:
             return "video"
         return "image"
+
+    def _stable_photo_id(self, relative_path: str) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"media:{relative_path}"))
+
+    def _remap_relation_ids(self, file_name: str, id_remap: dict[str, str]) -> None:
+        rows = self.store.read(file_name)
+        changed = False
+        for row in rows:
+            old_id = row.get("photo_id")
+            if old_id in id_remap:
+                row["photo_id"] = id_remap[old_id]
+                changed = True
+        if changed:
+            self.store.write(file_name, rows)
 
     def _walk_photos_root(self) -> tuple[list[Path], list[Path]]:
         dirs: list[Path] = []
