@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "Family Photo Gallery"
     data_dir: Path = Path("backend/data")
     photos_root: Path = Path("backend/photos_root")
+    static_root: Path | None = None
     token_ttl_days: int = 7
     scan_interval_seconds: int = 300
     admin_default_username: str = "admin"

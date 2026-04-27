@@ -57,28 +57,48 @@ npm run dev
 
 建议首次登录后由管理员修改密码并新增普通用户。
 
-## 打包与部署
+## 部署（两种方式任选其一）
 
-已提供完整自动化脚本，见 `deploy/README.md`。常用命令：
+### 方式一：服务器直接部署（nginx + systemd）
+
+适用于 Debian/Ubuntu，通过 SSH 安装 **nginx**、**systemd** 后端服务；**nginx 托管前端静态文件**，后端只处理 `/api` 与 `/photos`。运行数据默认在仓库外目录，代码更新不会覆盖照片与 JSON 数据。
+
+**首次部署**
+
+1. 在项目根目录打包：`bash deploy/package_release.sh`
+2. 一键上传到服务器并安装：`bash deploy/deploy_to_server.sh --host <服务器地址> --user <SSH 用户名> [--ssh-key ~/.ssh/id_rsa] [--remote-dir /opt/family-photo-gallery] [--domain your.domain.com] [--listen-port 8090]`  
+   可选参数与服务名说明见 `deploy/README.md`。
+
+**日后更新**
+
+在服务器上已进入本仓库的路径后执行：`bash deploy/update_to_server.sh`  
+（可选：`--branch`、`--remote-dir`、`--skip-git-pull` 等，见 `deploy/README.md`。）
+
+默认外置目录：`/var/lib/family-photo-gallery/data`、`/var/lib/family-photo-gallery/photos`。支持跨架构部署（例如本机 ARM 打包、远端 x86 安装）。
+
+### 方式二：容器镜像（Podman / Docker）
+
+单容器同时提供前端静态页与后端 API（通过环境变量 `GALLERY_STATIC_ROOT`）；数据与照片请挂载卷持久化。
+
+**构建镜像**
 
 ```bash
-# 本地打包
-bash deploy/package_release.sh
-
-# 一键部署到远端服务器
-bash deploy/deploy_to_server.sh \
-  --host <server-ip-or-domain> \
-  --user <ssh-user> \
-  --ssh-key ~/.ssh/id_rsa \
-  --remote-dir /opt/family-photo-gallery \
-  --domain <your-domain>
+podman build -t wutong:latest .
 ```
 
-说明：
+（使用 Docker 时将 `podman` 换成 `docker`。）
 
-- 支持跨架构部署（例如本地 `arm64` Mac mini 部署到 `x86_64` Linux）
-- 发布包不携带本机虚拟环境，远端按自身架构重建 Python 依赖
-- 生产环境默认使用仓库外目录保存数据与媒体：`/var/lib/family-photo-gallery/data`、`/var/lib/family-photo-gallery/photos`
+**运行示例**
+
+```bash
+podman run --rm -p 8080:8000 \
+  -v wutong-data:/data/app \
+  -v wutong-photos:/data/photos \
+  wutong:latest
+```
+
+或使用脚本：`chmod +x deploy/podman-run.sh && ./deploy/podman-run.sh`  
+浏览器访问：`http://localhost:8080`（映射到容器内 `8000`）。可用环境变量 `HOST_PORT`、`CONTAINER_ENGINE=docker` 调整端口或改用 Docker。
 
 ## 后端关键配置
 
@@ -90,11 +110,11 @@ bash deploy/deploy_to_server.sh \
 - `GALLERY_SCAN_INTERVAL_SECONDS`
 - `GALLERY_ADMIN_DEFAULT_USERNAME`
 - `GALLERY_ADMIN_DEFAULT_PASSWORD`
+- `GALLERY_STATIC_ROOT`（容器镜像内已设置；服务器直接部署一般不设，由 nginx 提供前端）
 
-提示：本地开发默认使用 `backend/data` 与 `backend/photos_root`；生产部署脚本会在 systemd 中注入 `GALLERY_DATA_DIR` / `GALLERY_PHOTOS_ROOT` 指向仓库外目录，避免代码更新影响线上数据。
+本地开发默认使用 `backend/data` 与 `backend/photos_root`。服务器直接部署时，`deploy` 脚本会在 systemd 中注入 `GALLERY_DATA_DIR`、`GALLERY_PHOTOS_ROOT`。
 
 ## 后续建议
 
-- 增加 `.gitignore`（忽略 `dist/*.tar.gz`、`.venv`、`node_modules` 等）
-- 增加自动化测试（后端 API 测试与前端 E2E）
-- 上线时启用 HTTPS（`nginx + certbot`）
+- 增加自动化测试（后端 API 与前端 E2E）
+- 上线时启用 HTTPS（例如 `nginx + certbot`）

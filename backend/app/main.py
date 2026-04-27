@@ -12,6 +12,13 @@ app = FastAPI(title=settings.app_name)
 app.include_router(router)
 app.mount("/photos", StaticFiles(directory=settings.photos_root), name="photos")
 
+if settings.static_root is not None and settings.static_root.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(settings.static_root), html=True),
+        name="frontend",
+    )
+
 _scan_task: asyncio.Task | None = None
 
 
