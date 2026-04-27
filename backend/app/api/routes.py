@@ -29,6 +29,7 @@ def _photo_brief(p) -> dict[str, Any]:
         "title": p.title or p.filename,
         "filename": p.filename,
         "relative_path": p.relative_path,
+        "media_type": p.media_type,
     }
 
 

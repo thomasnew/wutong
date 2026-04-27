@@ -21,7 +21,23 @@ class PhotoService:
         self.photos_root = photos_root
         self.file_name = "photos.json"
         self.image_exts = {".jpg", ".jpeg", ".png", ".webp"}
-        self.video_exts = {".mp4", ".mov", ".webm", ".m4v"}
+        self.video_exts = {
+            ".mp4",
+            ".mov",
+            ".webm",
+            ".m4v",
+            ".avi",
+            ".mkv",
+            ".flv",
+            ".wmv",
+            ".3gp",
+            ".ogv",
+            ".ts",
+            ".m2ts",
+            ".mts",
+            ".mpg",
+            ".mpeg",
+        }
         self.allowed = self.image_exts | self.video_exts
 
     def list_photos(self, folder: str | None = None) -> list[Photo]:

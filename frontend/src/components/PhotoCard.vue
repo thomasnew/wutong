@@ -8,7 +8,15 @@
   >
     <div class="photo-thumb" :class="`photo-thumb--${size}`">
       <img v-if="photo.media_type !== 'video'" :src="photoUrl(photo.relative_path)" :alt="photo.filename" />
-      <video v-else class="thumb-video" :src="photoUrl(photo.relative_path)" muted preload="metadata"></video>
+      <video
+        v-else
+        class="thumb-video"
+        :src="photoUrl(photo.relative_path)"
+        :type="videoMime(photo.relative_path)"
+        muted
+        preload="metadata"
+      ></video>
+      <span v-if="photo.media_type === 'video'" class="video-badge">▶</span>
     </div>
     <div class="photo-meta">
       <h4>{{ photo.title || photo.filename }}</h4>
@@ -48,6 +56,28 @@ defineEmits(["open", "edit", "hover", "leave"]);
 
 function photoUrl(relativePath) {
   return `/photos/${relativePath}`;
+}
+
+function videoMime(relativePath) {
+  const ext = (relativePath.split(".").pop() || "").toLowerCase();
+  const map = {
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    m4v: "video/mp4",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    flv: "video/x-flv",
+    wmv: "video/x-ms-wmv",
+    "3gp": "video/3gpp",
+    ogv: "video/ogg",
+    ts: "video/mp2t",
+    m2ts: "video/mp2t",
+    mts: "video/mp2t",
+    mpg: "video/mpeg",
+    mpeg: "video/mpeg",
+  };
+  return map[ext] || "video/mp4";
 }
 
 function formatTime(value) {

@@ -118,6 +118,27 @@ body { margin: 0; }
   border: 1px solid #d1d5db;
   background: #111827;
 }
+.rank-thumb-video {
+  object-fit: cover;
+}
+.video-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.8);
+  color: #fff;
+  font-size: 12px;
+  line-height: 22px;
+  text-align: center;
+  pointer-events: none;
+}
+.rank-video-badge {
+  right: 4px;
+  bottom: 4px;
+}
 .rank-hover-preview {
   position: absolute;
   left: 70px;

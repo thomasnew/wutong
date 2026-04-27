@@ -15,7 +15,23 @@
               @mouseenter.stop="scheduleHoverLoad(item.photo_id)"
               @mouseleave.stop="clearHoverTimer(item.photo_id)"
             >
-              <img class="rank-thumb" :src="photoUrl(item.relative_path)" :alt="item.filename" />
+              <img
+                v-if="item.media_type !== 'video'"
+                class="rank-thumb"
+                :src="photoUrl(item.relative_path)"
+                :alt="item.filename"
+              />
+              <video
+                v-else
+                class="rank-thumb rank-thumb-video"
+                :src="photoUrl(item.relative_path)"
+                :type="videoMime(item.relative_path)"
+                muted
+                playsinline
+                preload="auto"
+                @loadeddata="seekVideoToStart"
+              ></video>
+              <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
                 <template v-else>
@@ -58,7 +74,23 @@
               @mouseenter.stop="scheduleHoverLoad(item.photo_id)"
               @mouseleave.stop="clearHoverTimer(item.photo_id)"
             >
-              <img class="rank-thumb" :src="photoUrl(item.relative_path)" :alt="item.filename" />
+              <img
+                v-if="item.media_type !== 'video'"
+                class="rank-thumb"
+                :src="photoUrl(item.relative_path)"
+                :alt="item.filename"
+              />
+              <video
+                v-else
+                class="rank-thumb rank-thumb-video"
+                :src="photoUrl(item.relative_path)"
+                :type="videoMime(item.relative_path)"
+                muted
+                playsinline
+                preload="auto"
+                @loadeddata="seekVideoToStart"
+              ></video>
+              <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
                 <template v-else>
@@ -101,7 +133,23 @@
               @mouseenter.stop="scheduleHoverLoad(item.photo_id)"
               @mouseleave.stop="clearHoverTimer(item.photo_id)"
             >
-              <img class="rank-thumb" :src="photoUrl(item.relative_path)" :alt="item.filename" />
+              <img
+                v-if="item.media_type !== 'video'"
+                class="rank-thumb"
+                :src="photoUrl(item.relative_path)"
+                :alt="item.filename"
+              />
+              <video
+                v-else
+                class="rank-thumb rank-thumb-video"
+                :src="photoUrl(item.relative_path)"
+                :type="videoMime(item.relative_path)"
+                muted
+                playsinline
+                preload="auto"
+                @loadeddata="seekVideoToStart"
+              ></video>
+              <span v-if="item.media_type === 'video'" class="video-badge rank-video-badge">▶</span>
               <div class="rank-hover-preview">
                 <p v-if="hoverLoading[item.photo_id]" class="hover-loading">加载中...</p>
                 <template v-else>
@@ -150,7 +198,14 @@
         :src="photoUrl(detail.relative_path)"
         :alt="detail.filename"
       />
-      <video v-else class="detail-video" :src="photoUrl(detail.relative_path)" controls preload="metadata"></video>
+      <video
+        v-else
+        class="detail-video"
+        :src="photoUrl(detail.relative_path)"
+        :type="videoMime(detail.relative_path)"
+        controls
+        preload="metadata"
+      ></video>
       <p>{{ detail.description || "暂无描述" }}</p>
       <p>地点：{{ detail.location_text || "未知" }}</p>
       <div class="actions">
@@ -229,6 +284,28 @@ function photoUrl(relativePath) {
   return `/photos/${relativePath}`;
 }
 
+function videoMime(relativePath) {
+  const ext = (relativePath.split(".").pop() || "").toLowerCase();
+  const map = {
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    m4v: "video/mp4",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    flv: "video/x-flv",
+    wmv: "video/x-ms-wmv",
+    "3gp": "video/3gpp",
+    ogv: "video/ogg",
+    ts: "video/mp2t",
+    m2ts: "video/mp2t",
+    mts: "video/mp2t",
+    mpg: "video/mpeg",
+    mpeg: "video/mpeg",
+  };
+  return map[ext] || "video/mp4";
+}
+
 function scheduleHoverLoad(photoId) {
   if (hoverDetails.value[photoId] || hoverInflight.has(photoId)) return;
   clearHoverTimer(photoId);
@@ -305,6 +382,16 @@ function updatedMarquee(photoId, updatedAt) {
 
 function marqueeStyle() {
   return { animationDuration: `${marqueeSpeedSeconds.value}s` };
+}
+
+function seekVideoToStart(event) {
+  const el = event?.target;
+  if (!el) return;
+  try {
+    el.currentTime = 0;
+  } catch (_) {
+    // ignore
+  }
 }
 
 async function toggleLikeInHome() {
