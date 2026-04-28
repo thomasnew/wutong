@@ -11,6 +11,7 @@
 - `deploy/deploy_to_server.sh`：本地一键部署入口（会自动上传并触发远程安装）。
 - `deploy/remote_setup.sh`：远程执行脚本（由 `deploy_to_server.sh` 上传并执行）。
 - `deploy/update_to_server.sh`：服务器本机增量更新脚本（拉新代码并自动重启服务）。
+- `deploy/backup_wutong.sh`：备份 MySQL 与照片目录，并清理过期备份。
 
 ## 1) 本地打包
 
@@ -97,4 +98,34 @@ sudo systemctl status family-photo-gallery
 sudo journalctl -u family-photo-gallery -n 200 --no-pager
 sudo nginx -t
 sudo systemctl restart nginx
+```
+
+## 数据备份（服务器上执行）
+
+脚本位置：`deploy/backup_wutong.sh`
+
+```bash
+chmod +x deploy/backup_wutong.sh
+bash deploy/backup_wutong.sh
+```
+
+默认行为：
+
+- 备份 MySQL（`wutong` 库）到 `/var/backups/wutong/<timestamp>/mysql-wutong.sql.gz`
+- 备份照片目录 `/var/lib/family-photo-gallery/photos` 到同目录 `photos.tar.gz`
+- 生成 `SHA256SUMS`
+- 清理超过 14 天的备份目录
+
+可选环境变量（按需覆盖）：
+
+```bash
+BACKUP_DIR=/var/backups/wutong \
+DB_HOST=127.0.0.1 \
+DB_PORT=3306 \
+DB_USER=wutong \
+DB_NAME=wutong \
+DB_PASSWORD=wutong \
+PHOTOS_ROOT=/var/lib/family-photo-gallery/photos \
+RETENTION_DAYS=14 \
+bash deploy/backup_wutong.sh
 ```
