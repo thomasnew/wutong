@@ -11,9 +11,12 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
-LISTEN_PORT="8090"
+LISTEN_PORT="443"
 PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
 DATABASE_URL="mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
+ENABLE_HTTPS="true"
+SSL_CERT_PATH=""
+SSL_KEY_PATH=""
 SKIP_PACKAGE="false"
 ARCHIVE_PATH=""
 
@@ -31,9 +34,12 @@ usage() {
     [--service-name family-photo-gallery] \\
     [--site-name family-photo-gallery] \\
     [--domain your.domain.com] \\
-    [--listen-port 8090] \\
+    [--listen-port 443] \\
     [--photos-root /var/lib/family-photo-gallery/photos] \\
     [--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong] \\
+    [--disable-https] \\
+    [--ssl-cert-path /etc/letsencrypt/live/your.domain.com/fullchain.pem] \\
+    [--ssl-key-path /etc/letsencrypt/live/your.domain.com/privkey.pem] \\
     [--skip-package]
 EOF
 }
@@ -82,6 +88,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --database-url)
       DATABASE_URL="$2"
+      shift 2
+      ;;
+    --disable-https)
+      ENABLE_HTTPS="false"
+      shift
+      ;;
+    --ssl-cert-path)
+      SSL_CERT_PATH="$2"
+      shift 2
+      ;;
+    --ssl-key-path)
+      SSL_KEY_PATH="$2"
       shift 2
       ;;
     --skip-package)
@@ -149,16 +167,23 @@ if [[ "$REMOTE_ARCH" != "$LOCAL_ARCH" ]]; then
 fi
 
 echo "[3/4] 执行远程部署"
-ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
-  "chmod +x ${REMOTE_SCRIPT} && bash ${REMOTE_SCRIPT} \
-    --archive ${REMOTE_ARCHIVE} \
+REMOTE_ARGS="--archive ${REMOTE_ARCHIVE} \
     --remote-dir ${REMOTE_DIR} \
     --service-name ${SERVICE_NAME} \
     --site-name ${SITE_NAME} \
     --domain ${DOMAIN} \
     --listen-port ${LISTEN_PORT} \
     --photos-root ${PHOTOS_ROOT} \
-    --database-url ${DATABASE_URL}"
+    --database-url ${DATABASE_URL} \
+    --enable-https ${ENABLE_HTTPS}"
+if [[ -n "$SSL_CERT_PATH" ]]; then
+  REMOTE_ARGS="${REMOTE_ARGS} --ssl-cert-path ${SSL_CERT_PATH}"
+fi
+if [[ -n "$SSL_KEY_PATH" ]]; then
+  REMOTE_ARGS="${REMOTE_ARGS} --ssl-key-path ${SSL_KEY_PATH}"
+fi
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
+  "chmod +x ${REMOTE_SCRIPT} && bash ${REMOTE_SCRIPT} ${REMOTE_ARGS}"
 
 echo "[4/4] 清理远程脚本"
 ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "rm -f ${REMOTE_SCRIPT}"

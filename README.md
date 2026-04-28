@@ -83,7 +83,7 @@ npm run dev
 **首次部署**
 
 1. 在项目根目录打包：`bash deploy/package_release.sh`
-2. 一键上传到服务器并安装：`bash deploy/deploy_to_server.sh --host <服务器地址> --user <SSH 用户名> [--ssh-key ~/.ssh/id_rsa] [--remote-dir /opt/family-photo-gallery] [--domain your.domain.com] [--listen-port 8090]`  
+2. 一键上传到服务器并安装：`bash deploy/deploy_to_server.sh --host <服务器地址> --user <SSH 用户名> [--ssh-key ~/.ssh/id_rsa] [--remote-dir /opt/family-photo-gallery] [--domain your.domain.com] [--listen-port 443]`  
    可选参数与服务名说明见 `deploy/README.md`。
 
 **日后更新**
@@ -92,6 +92,7 @@ npm run dev
 （可选：`--branch`、`--remote-dir`、`--skip-git-pull` 等，见 `deploy/README.md`。）
 
 默认外置媒体目录：`/var/lib/family-photo-gallery/photos`。支持跨架构部署（例如本机 ARM 打包、远端 x86 安装）。
+默认启用 HTTPS（80 自动跳转到 443），请提前准备证书，或通过 `--disable-https` 临时使用 HTTP。
 
 ### 方式二：容器部署（Podman Compose，app + db）
 

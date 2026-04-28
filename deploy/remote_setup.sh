@@ -7,9 +7,12 @@ REMOTE_DIR="/opt/family-photo-gallery"
 SERVICE_NAME="family-photo-gallery"
 SITE_NAME="family-photo-gallery"
 DOMAIN="_"
-LISTEN_PORT="8090"
+LISTEN_PORT="443"
 PHOTOS_ROOT="/var/lib/family-photo-gallery/photos"
 DATABASE_URL="mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong"
+ENABLE_HTTPS="true"
+SSL_CERT_PATH=""
+SSL_KEY_PATH=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,6 +48,18 @@ while [[ $# -gt 0 ]]; do
       DATABASE_URL="$2"
       shift 2
       ;;
+    --enable-https)
+      ENABLE_HTTPS="$2"
+      shift 2
+      ;;
+    --ssl-cert-path)
+      SSL_CERT_PATH="$2"
+      shift 2
+      ;;
+    --ssl-key-path)
+      SSL_KEY_PATH="$2"
+      shift 2
+      ;;
     *)
       echo "未知参数: $1"
       exit 1
@@ -65,6 +80,30 @@ fi
 if ! [[ "$LISTEN_PORT" =~ ^[0-9]+$ ]] || [[ "$LISTEN_PORT" -lt 1 ]] || [[ "$LISTEN_PORT" -gt 65535 ]]; then
   echo "端口无效: $LISTEN_PORT (应为 1-65535)"
   exit 1
+fi
+
+if [[ "$ENABLE_HTTPS" != "true" && "$ENABLE_HTTPS" != "false" ]]; then
+  echo "参数 --enable-https 仅支持 true/false"
+  exit 1
+fi
+
+if [[ "$ENABLE_HTTPS" == "true" ]]; then
+  if [[ -z "$SSL_CERT_PATH" && "$DOMAIN" != "_" ]]; then
+    SSL_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+  fi
+  if [[ -z "$SSL_KEY_PATH" && "$DOMAIN" != "_" ]]; then
+    SSL_KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+  fi
+  if [[ -z "$SSL_CERT_PATH" || -z "$SSL_KEY_PATH" ]]; then
+    echo "HTTPS 已启用，但证书路径为空。请传入 --ssl-cert-path 与 --ssl-key-path。"
+    exit 1
+  fi
+  if [[ ! -f "$SSL_CERT_PATH" || ! -f "$SSL_KEY_PATH" ]]; then
+    echo "HTTPS 证书文件不存在："
+    echo "  cert: $SSL_CERT_PATH"
+    echo "  key : $SSL_KEY_PATH"
+    exit 1
+  fi
 fi
 
 if ! command -v sudo >/dev/null 2>&1; then
@@ -124,6 +163,45 @@ sudo mv "$SERVICE_FILE" "/etc/systemd/system/${SERVICE_NAME}.service"
 
 echo "[6/8] 写入 nginx 站点配置"
 NGINX_FILE="/tmp/${SITE_NAME}.conf"
+if [[ "$ENABLE_HTTPS" == "true" ]]; then
+cat > "$NGINX_FILE" <<EOF
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen ${LISTEN_PORT} ssl http2;
+    server_name ${DOMAIN};
+    ssl_certificate ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
+
+    root ${REMOTE_DIR}/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /photos/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+else
 cat > "$NGINX_FILE" <<EOF
 server {
     listen ${LISTEN_PORT};
@@ -153,6 +231,7 @@ server {
     }
 }
 EOF
+fi
 sudo mv "$NGINX_FILE" "/etc/nginx/sites-available/${SITE_NAME}.conf"
 sudo ln -sf "/etc/nginx/sites-available/${SITE_NAME}.conf" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"
 
@@ -176,7 +255,15 @@ echo "- Web: 由 nginx 站点 ${SITE_NAME}.conf 提供"
 echo "- 数据库连接: ${DATABASE_URL}"
 echo "- 媒体目录: ${PHOTOS_ROOT}"
 echo "- 监听端口: ${LISTEN_PORT}"
-echo "- 可访问地址(IP): http://${SERVER_IP}:${LISTEN_PORT}/"
+if [[ "$ENABLE_HTTPS" == "true" ]]; then
+  echo "- 可访问地址(IP): https://${SERVER_IP}:${LISTEN_PORT}/"
+else
+  echo "- 可访问地址(IP): http://${SERVER_IP}:${LISTEN_PORT}/"
+fi
 if [[ "${DOMAIN}" != "_" ]]; then
-  echo "- 可访问地址(域名): http://${DOMAIN}:${LISTEN_PORT}/"
+  if [[ "$ENABLE_HTTPS" == "true" ]]; then
+    echo "- 可访问地址(域名): https://${DOMAIN}:${LISTEN_PORT}/"
+  else
+    echo "- 可访问地址(域名): http://${DOMAIN}:${LISTEN_PORT}/"
+  fi
 fi

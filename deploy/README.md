@@ -39,7 +39,9 @@ bash deploy/deploy_to_server.sh \
   --ssh-key ~/.ssh/id_rsa \
   --remote-dir /opt/family-photo-gallery \
   --domain your.domain.com \
-  --listen-port 8090
+  --listen-port 443 \
+  --ssl-cert-path /etc/letsencrypt/live/your.domain.com/fullchain.pem \
+  --ssl-key-path /etc/letsencrypt/live/your.domain.com/privkey.pem
 ```
 
 常用可选参数：
@@ -47,15 +49,19 @@ bash deploy/deploy_to_server.sh \
 - `--port 22`：SSH 端口
 - `--service-name family-photo-gallery`：systemd 服务名
 - `--site-name family-photo-gallery`：nginx 站点名
-- `--listen-port 8090`：nginx 监听端口（默认 8090）
+- `--listen-port 443`：nginx HTTPS 监听端口（默认 443）
 - `--photos-root /var/lib/family-photo-gallery/photos`：照片目录（仓库外）
 - `--database-url mysql+pymysql://wutong:wutong@127.0.0.1:3306/wutong`：MySQL 连接串
+- `--disable-https`：关闭 HTTPS，退回 HTTP
+- `--ssl-cert-path`：证书 fullchain 路径（未指定时会尝试 `/etc/letsencrypt/live/<domain>/fullchain.pem`）
+- `--ssl-key-path`：证书私钥路径（未指定时会尝试 `/etc/letsencrypt/live/<domain>/privkey.pem`）
 - `--skip-package`：跳过重新打包，直接部署最近一次包
 
 重要说明：
 
 - 生产环境的媒体目录默认在仓库外（`/var/lib/family-photo-gallery/photos`）。
 - `git pull` / 代码更新不会删除照片目录中的文件；互动数据存放在 MySQL。
+- 默认启用 HTTPS：`80 -> 443` 自动跳转，需要服务器上已有可用证书。
 
 ## 部署后的服务位置
 
