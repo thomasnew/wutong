@@ -37,8 +37,8 @@ class AuthService:
             token = TokenModel(
                 token=new_token(),
                 user_id=user.id,
-                expire_at=token_expire(settings.token_ttl_days),
-                last_seen_at=now_utc(),
+                expire_at=token_expire(settings.token_ttl_days).replace(tzinfo=None),
+                last_seen_at=now_utc().replace(tzinfo=None),
             )
             db.add(token)
             return token.token, user
@@ -50,7 +50,9 @@ class AuthService:
                 db.delete(row)
 
     def get_user_by_token(self, token: str) -> User | None:
-        now = now_utc()
+        # MySQL DATETIME is loaded as naive datetime by default with PyMySQL.
+        # Normalize to naive UTC to avoid naive/aware comparison errors.
+        now = now_utc().replace(tzinfo=None)
         with self._session() as db:
             matched = db.execute(select(TokenModel).where(TokenModel.token == token)).scalars().first()
             if not matched:
@@ -60,6 +62,6 @@ class AuthService:
                 return None
 
             matched.last_seen_at = now
-            matched.expire_at = token_expire(settings.token_ttl_days)
+            matched.expire_at = token_expire(settings.token_ttl_days).replace(tzinfo=None)
             user = self.user_service.get_by_id(matched.user_id)
             return user
