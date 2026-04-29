@@ -14,9 +14,8 @@
         muted
         playsinline
         webkit-playsinline="true"
-        autoplay
-        loop
         preload="metadata"
+        @loadedmetadata="freezeThumbPoster"
       >
         <source :src="photoUrl(photo.relative_path)" :type="videoMime(photo.relative_path)" />
       </video>
@@ -89,5 +88,27 @@ function formatTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString();
+}
+
+/** 仅显示首帧，不自动播放；点击卡片仍打开详情由用户播放 */
+function freezeThumbPoster(event) {
+  const v = event?.target;
+  if (!v) return;
+  const done = () => {
+    v.removeEventListener("seeked", done);
+    v.pause();
+  };
+  v.addEventListener("seeked", done);
+  try {
+    if (v.seekable?.length) {
+      const start = v.seekable.start(0);
+      const end = v.seekable.end(0);
+      v.currentTime = start < end ? Math.min(start + 0.001, end) : 0;
+    } else {
+      v.currentTime = 0.001;
+    }
+  } catch (_) {
+    done();
+  }
 }
 </script>

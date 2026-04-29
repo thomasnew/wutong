@@ -30,10 +30,8 @@
                 muted
                 playsinline
                 webkit-playsinline="true"
-                autoplay
-                loop
-                preload="auto"
-                @loadeddata="seekVideoToStart"
+                preload="metadata"
+                @loadedmetadata="freezeThumbPoster"
               >
                 <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
               </video>
@@ -96,10 +94,8 @@
                 muted
                 playsinline
                 webkit-playsinline="true"
-                autoplay
-                loop
-                preload="auto"
-                @loadeddata="seekVideoToStart"
+                preload="metadata"
+                @loadedmetadata="freezeThumbPoster"
               >
                 <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
               </video>
@@ -162,10 +158,8 @@
                 muted
                 playsinline
                 webkit-playsinline="true"
-                autoplay
-                loop
-                preload="auto"
-                @loadeddata="seekVideoToStart"
+                preload="metadata"
+                @loadedmetadata="freezeThumbPoster"
               >
                 <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
               </video>
@@ -229,10 +223,8 @@
               muted
               playsinline
               webkit-playsinline="true"
-              autoplay
-              loop
-              preload="auto"
-              @loadeddata="seekVideoToStart"
+              preload="metadata"
+              @loadedmetadata="freezeThumbPoster"
             >
               <source :src="photoUrl(item.relative_path)" :type="videoMime(item.relative_path)" />
             </video>
@@ -490,13 +482,25 @@ function marqueeStyle() {
   return { animationDuration: `${marqueeSpeedSeconds.value}s` };
 }
 
-function seekVideoToStart(event) {
-  const el = event?.target;
-  if (!el) return;
+/** 排行榜缩略图仅显示首帧，点击条目打开详情后再由用户播放 */
+function freezeThumbPoster(event) {
+  const v = event?.target;
+  if (!v) return;
+  const done = () => {
+    v.removeEventListener("seeked", done);
+    v.pause();
+  };
+  v.addEventListener("seeked", done);
   try {
-    el.currentTime = 0;
+    if (v.seekable?.length) {
+      const start = v.seekable.start(0);
+      const end = v.seekable.end(0);
+      v.currentTime = start < end ? Math.min(start + 0.001, end) : 0;
+    } else {
+      v.currentTime = 0.001;
+    }
   } catch (_) {
-    // ignore
+    done();
   }
 }
 
